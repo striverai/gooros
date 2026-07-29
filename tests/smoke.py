@@ -12,6 +12,12 @@ from gooros_hermes.dashboard_patcher import build_live_dashboard
 from gooros_hermes.release import read_release_manifest, validate_release_manifest
 
 
+GOOROS_LOGO_URL = (
+    "https://lh3.googleusercontent.com/pw/"
+    "AP1GczPr8NBMmnzZc_CES2G0Sa-AqmGF_qN2hpNKAPB0OzeUorrSa-YMthSEJ8L5_sfrKEKDME57Wz_ou7jtSBdNuDi0xY_88AOEDS2eTimErPxaGRTpcP7oPN6eXjKnVWGQdDmte8XgAYx4ksTXOe7XPIc=w1378-h234-s-no-gm"
+)
+
+
 def main() -> int:
     ok = compileall.compile_dir(ROOT / "gooros_hermes", quiet=1)
     ok = compileall.compile_dir(ROOT / "migrations", quiet=1) and ok
@@ -22,7 +28,8 @@ def main() -> int:
         out = Path(tmp) / "index.html"
         build_live_dashboard(ROOT / "assets" / "dashboard" / "template.html", out)
         text = out.read_text(encoding="utf-8")
-        assert "/gooros-logo.png" in text
+        assert f'<img src="{GOOROS_LOGO_URL}"' in text
+        assert '<img src="/gooros-logo.png"' not in text
         old_dashboard_copy = (
             "Hermes is coordinating",
             "Hermes Core",
