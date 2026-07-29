@@ -17,10 +17,13 @@ def main() -> int:
     ok = compileall.compile_dir(ROOT / "migrations", quiet=1) and ok
     ok = compileall.compile_file(str(ROOT / "assets" / "dashboard" / "server.py"), quiet=1) and ok
     validate_release_manifest(ROOT, read_release_manifest(ROOT))
+    assert (ROOT / "assets" / "dashboard" / "gooros-logo.png").exists()
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "index.html"
         build_live_dashboard(ROOT / "assets" / "dashboard" / "template.html", out)
         text = out.read_text(encoding="utf-8")
+        assert "/gooros-logo.png" in text
+        assert "Hermes<span" not in text
         assert "DEMO_" not in text
         assert "hard-coded reply" not in text
         assert "hydrate(); connectSSE(); startPolling();" in text

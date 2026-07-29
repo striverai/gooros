@@ -485,6 +485,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.serve_file(PROJECT_DIR / "index.html")
         if path == "/template":
             return self.serve_file(PROJECT_DIR / "template.html")
+        if path == "/gooros-logo.png":
+            return self.serve_file(PROJECT_DIR / "gooros-logo.png")
         if path == "/upload":
             return text_response(self, upload_html(), content_type="text/html; charset=utf-8")
         if path == "/api/state":

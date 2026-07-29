@@ -172,6 +172,7 @@ def install_dashboard(paths: InstallPaths, runner: Runner | None = None) -> None
     ensure_dir(paths.project_dir)
     copy_file(asset_path("dashboard", "server.py"), paths.project_dir / "server.py", mode=0o755)
     copy_file(asset_path("dashboard", "template.html"), paths.project_dir / "template.html")
+    copy_file(asset_path("dashboard", "gooros-logo.png"), paths.project_dir / "gooros-logo.png")
     build_live_dashboard(paths.project_dir / "template.html", paths.project_dir / "index.html")
     ensure_dir(paths.project_dir / "content" / "orchestrator")
     for agent in SPECIALISTS:

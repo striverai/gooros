@@ -1,11 +1,12 @@
 {
   "product": "gooros-hermes-mission-control",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "schema_version": 1,
   "migrations": ["0001_initial"],
   "release_owned": [
     "assets/dashboard/server.py",
     "assets/dashboard/template.html",
+    "assets/dashboard/gooros-logo.png",
     "assets/profiles",
     "assets/plugins/telegram_topic_profiles",
     "assets/shared",

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Hermes — Agent Mission Control</title>
-<meta name="description" content="Operator console for the Hermes agentic platform: 5 autonomous agents, live orchestration, telemetry, missions and ledger." />
+<title>Gooros — Agent Mission Control</title>
+<meta name="description" content="Operator console for the Gooros agentic platform: 5 autonomous agents, live orchestration, telemetry, missions and ledger." />
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -166,12 +166,9 @@ tailwind.config = {
   <!-- ====== TOP BAR ====== -->
   <header class="px-4 md:px-6 lg:px-8 pt-5 pb-3 max-w-[1600px] mx-auto">
     <div class="flex items-center gap-3">
-      <a href="#/" class="flex items-center gap-2.5 pr-4">
-        <div class="relative size-8 rounded-full bg-ink grid place-items-center">
-          <i data-lucide="hexagon" class="size-4 text-ember" stroke-width="2"></i>
-          <span class="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-ember animate-breathe"></span>
-        </div>
-        <span class="font-display text-[22px] leading-none text-ink tracking-tight">Hermes<span class="text-ember">.</span></span>
+      <a href="#/" class="flex min-w-0 items-center gap-2.5 pr-2 sm:pr-4">
+        <span class="sr-only">Gooros Mission Control</span>
+        <img src="/gooros-logo.png" alt="Gooros" class="block h-[25px] w-auto max-w-[118px] shrink-0 object-contain sm:h-[29px] sm:max-w-[154px] md:h-[31px] md:max-w-[168px]">
         <span data-version class="self-center ml-1 font-mono text-[9px] leading-none text-muted-foreground px-1.5 py-1 rounded-md border border-border bg-cream">v1.0</span>
       </a>
       <nav id="tabs-desktop" class="hidden md:flex items-center gap-1 pl-2"></nav>

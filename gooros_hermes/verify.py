@@ -33,7 +33,7 @@ def verify_install(paths: InstallPaths, *, public: bool = False) -> list[str]:
         cfg = root / "config.yaml"
         if cfg.exists() and "platforms:" in cfg.read_text(encoding="utf-8"):
             failures.append(f"profile {agent} still has platforms block")
-    for name in ("server.py", "index.html", "template.html"):
+    for name in ("server.py", "index.html", "template.html", "gooros-logo.png"):
         if not (paths.project_dir / name).exists():
             failures.append(f"dashboard file missing: {name}")
     index = paths.project_dir / "index.html"
@@ -86,4 +86,3 @@ def doctor(paths: InstallPaths, runner: Runner) -> dict:
 
 def print_doctor(report: dict) -> None:
     print(json.dumps(report, indent=2, sort_keys=True))
-
