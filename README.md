@@ -16,8 +16,7 @@ Safe installer/updater for a 5-agent Hermes Mission Control setup:
 After publishing this repository, customers can bootstrap the CLI from GitHub:
 
 ```bash
-GOOROS_HERMES_REPO=https://github.com/striverai/gooros.git \
-  bash -c "$(curl -fsSL https://raw.githubusercontent.com/striverai/gooros/main/install.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/striverai/gooros/main/install.sh)"
 ```
 
 Then run the fresh install:
@@ -134,4 +133,4 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-The repository is configured for `striverai/gooros`. For a private repository, customers need GitHub access or a token-capable install path.
+The repository is configured for public installs from `striverai/gooros`.
