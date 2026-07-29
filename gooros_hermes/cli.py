@@ -36,7 +36,7 @@ def add_config_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--acme-email")
     parser.add_argument("--dash-user", default="gooros")
     parser.add_argument("--dash-password")
-    parser.add_argument("--model-policy", default="deepseek-free-first")
+    parser.add_argument("--model-policy", default="9router-free-combo-round-robin")
 
 
 def build_parser() -> argparse.ArgumentParser:

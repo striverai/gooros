@@ -7,10 +7,11 @@ import urllib.request
 from urllib.error import HTTPError
 from pathlib import Path
 
-from .constants import AGENTS, SPECIALISTS
+from .constants import AGENTS, GOOROS_9ROUTER_COMBO_NAME, SPECIALISTS
 from .paths import InstallPaths
-from .configstore import read_customer_files
+from .configstore import read_customer_files, read_env_values
 from .proxy import verify_public_proxy
+from .router_api import get_router_settings, list_router_combos, list_router_keys
 from .runner import Runner
 
 
@@ -105,6 +106,54 @@ def verify_install(paths: InstallPaths, *, public: bool = False, with_9router: b
         models, detail = _router_models()
         if not models:
             failures.append(f"9Router /v1/models returned no usable models: {detail}")
+        elif GOOROS_9ROUTER_COMBO_NAME not in models:
+            failures.append(f"9Router /v1/models does not expose combo model: {GOOROS_9ROUTER_COMBO_NAME}")
+        router_key = read_env_values(paths.secrets_env).get("GOOROS_9ROUTER_API_KEY", "")
+        if not router_key:
+            failures.append("GOOROS_9ROUTER_API_KEY missing; Hermes is not using a real 9Router API key")
+        else:
+            try:
+                keys = list_router_keys()
+                if not any(item.get("key") == router_key and item.get("isActive", True) is not False for item in keys):
+                    failures.append("stored GOOROS_9ROUTER_API_KEY is not present as an active 9Router API key")
+            except Exception as exc:
+                failures.append(f"9Router API key list not verifiable: {exc}")
+        try:
+            combos = list_router_combos()
+            combo = next((item for item in combos if item.get("name") == GOOROS_9ROUTER_COMBO_NAME), None)
+            if not combo:
+                failures.append(f"9Router combo missing: {GOOROS_9ROUTER_COMBO_NAME}")
+            elif not combo.get("models"):
+                failures.append(f"9Router combo has no member models: {GOOROS_9ROUTER_COMBO_NAME}")
+        except Exception as exc:
+            failures.append(f"9Router combo list not verifiable: {exc}")
+        try:
+            settings = get_router_settings()
+            if settings.get("comboStrategy") != "round-robin":
+                failures.append("9Router comboStrategy is not round-robin")
+        except Exception as exc:
+            failures.append(f"9Router settings not verifiable: {exc}")
+        routing = paths.hermes_home / "agents" / "_shared" / "model-routing.json"
+        if routing.exists():
+            try:
+                routing_data = json.loads(routing.read_text(encoding="utf-8"))
+                combo_data = routing_data.get("combo", {}) if isinstance(routing_data, dict) else {}
+                if combo_data.get("name") != GOOROS_9ROUTER_COMBO_NAME:
+                    failures.append("model-routing.json does not point to the Gooros 9Router combo")
+                if not combo_data.get("members"):
+                    failures.append("model-routing.json has no free combo member list")
+            except Exception as exc:
+                failures.append(f"model-routing.json invalid: {exc}")
+        else:
+            failures.append("model-routing.json missing for 9Router combo routing")
+        profile_targets = [("orchestrator", paths.hermes_home)] + [(agent, paths.hermes_home / "profiles" / agent) for agent in SPECIALISTS]
+        for agent, root in profile_targets:
+            cfg = root / "config.yaml"
+            env = root / ".env"
+            if cfg.exists() and GOOROS_9ROUTER_COMBO_NAME not in cfg.read_text(encoding="utf-8", errors="replace"):
+                failures.append(f"Hermes profile {agent} default model is not the 9Router combo")
+            if router_key and read_env_values(env).get("OPENAI_API_KEY") != router_key:
+                failures.append(f"Hermes profile {agent} .env does not contain the active 9Router API key")
     return failures
 
 

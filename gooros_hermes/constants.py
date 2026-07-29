@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 PRODUCT = "gooros-hermes-mission-control"
-VERSION = "0.1.8"
+VERSION = "0.1.9"
 SCHEMA_VERSION = 1
+GOOROS_9ROUTER_API_KEY_NAME = "Gooros Hermes"
+GOOROS_9ROUTER_COMBO_NAME = "gooros-free-combo"
 
 AGENTS = ("orchestrator", "scout", "scribe", "reach", "dev")
 SPECIALISTS = ("scout", "scribe", "reach", "dev")

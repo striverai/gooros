@@ -110,10 +110,14 @@ Hermes native:   http://127.0.0.1:9119
 9Router:         http://127.0.0.1:20128/dashboard and /v1/models
 ```
 
-For `--with-9router`, the CLI waits for 9Router, discovers available models,
-selects a DeepSeek/free model first when one exists, runs a tiny
-`/v1/chat/completions` smoke test, then switches Hermes to
-`model.provider=custom` and `model.base_url=http://127.0.0.1:20128/v1`.
+For `--with-9router`, the CLI waits for 9Router, creates/reuses a real
+9Router API key via `/api/keys`, builds the `gooros-free-combo` from all
+discoverable free/free-tier models, orders DeepSeek models first, enables
+round-robin combo rotation, smoke-tests the combo through
+`/v1/chat/completions`, then switches Hermes root plus every Gooros-managed
+profile to `model.provider=custom`,
+`model.base_url=http://127.0.0.1:20128/v1`, and
+`model.default=gooros-free-combo`.
 On a fresh install, 9Router's initial dashboard password is set to the same
 generated dashboard auth password printed once by the installer.
 If the smoke test fails, connect a working free provider in the 9Router
@@ -174,7 +178,7 @@ This repository is the configured internal pilot release source:
 ```bash
 git remote -v
 git status --short --branch
-TARGET_TAG=v0.1.8
+TARGET_TAG=v0.1.9
 git rev-parse --verify "$TARGET_TAG" >/dev/null 2>&1 || git tag "$TARGET_TAG"
 git push origin main --tags
 ```

@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT))
 from gooros_hermes.dashboard_patcher import build_live_dashboard
 from gooros_hermes.installer import choose_9router_model
 from gooros_hermes.release import read_release_manifest, validate_release_manifest
+from gooros_hermes.router_api import GOOROS_9ROUTER_COMBO_NAME, rank_router_models
 from gooros_hermes import __version__
 from gooros_hermes.constants import VERSION
 
@@ -80,6 +81,8 @@ def main() -> int:
         assert "hydrate(); connectSSE(); startPolling();" in text
     assert choose_9router_model(["openai/gpt-4o", "kr/deepseek-3.2", "oc/qwen3-coder"]) == "kr/deepseek-3.2"
     assert choose_9router_model(["paid/model", "free/model"]) == "free/model"
+    assert rank_router_models(["oc/qwen-free", "kr/deepseek-3.2", "kr/deepseek-3.2"]) == ["kr/deepseek-3.2", "oc/qwen-free"]
+    assert GOOROS_9ROUTER_COMBO_NAME == "gooros-free-combo"
     print("smoke ok")
     return 0 if ok else 1
 

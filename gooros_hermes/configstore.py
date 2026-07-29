@@ -110,7 +110,7 @@ def collect_customer_config(args: object, *, interactive: bool) -> CustomerConfi
         "acme_email": _env_arg(args, "acme_email", env_file, ("GOOROS_ACME_EMAIL", "ACME_EMAIL")),
         "dash_user": _env_arg(args, "dash_user", env_file, ("GOOROS_DASH_USER", "DASH_USER"), "gooros"),
         "dash_password": _env_arg(args, "dash_password", env_file, ("GOOROS_DASH_PASSWORD", "DASH_PASSWORD"), generated_password),
-        "model_policy": _env_arg(args, "model_policy", env_file, ("GOOROS_MODEL_POLICY", "MODEL_POLICY"), "deepseek-free-first"),
+        "model_policy": _env_arg(args, "model_policy", env_file, ("GOOROS_MODEL_POLICY", "MODEL_POLICY"), "9router-free-combo-round-robin"),
     }
     if interactive:
         values["owner_name"] = _prompt("Owner name", values["owner_name"])
@@ -233,7 +233,7 @@ def read_customer_files(paths: InstallPaths) -> CustomerConfig:
         "acme_email": "",
         "dash_user": "gooros",
         "dash_password": "",
-        "model_policy": "deepseek-free-first",
+        "model_policy": "9router-free-combo-round-robin",
     }
     defaults.update({k: v for k, v in values.items() if k in defaults})
     return CustomerConfig(**defaults)

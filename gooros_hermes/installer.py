@@ -9,13 +9,14 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 
 from .configstore import CustomerConfig, collect_customer_config, merge_env_values, validate_required, write_customer_files
-from .constants import AGENTS, SPECIALISTS, VERSION
+from .constants import GOOROS_9ROUTER_API_KEY_NAME, GOOROS_9ROUTER_COMBO_NAME, SPECIALISTS, VERSION
 from .dashboard_patcher import build_live_dashboard
 from .fsutil import atomic_write_json, atomic_write_text, copy_file, ensure_dir
 from .paths import InstallPaths, asset_path, default_paths
 from .proxy import caddy_hash_password, install_public_proxy, root_prefix, router_local_api_key, sslip_name, write_system_env
 from .release import current_source_metadata
 from .runner import Runner
+from .router_api import choose_router_model, discover_free_router_models, ensure_router_api_key, ensure_router_combo, ensure_router_round_robin
 from .safety import create_snapshot, write_install_state
 from .verify import verify_install
 from .yaml_merge import merge_telegram_group_config, remove_top_level_block
@@ -119,7 +120,7 @@ def smoke_9router_model(model: str, api_key: str = "", timeout: int = 90) -> Non
             raise RuntimeError(f"unexpected response: {body[:500]}")
     except Exception as exc:
         raise RuntimeError(
-            "9Router model smoke test failed. Connect a working free provider/model in the 9Router dashboard "
+            "9Router combo smoke test failed. Connect a working free provider/model in the 9Router dashboard "
             "or set GOOROS_9ROUTER_SMOKE=0 only for a non-provider update. "
             f"model={model}; detail={exc}"
         ) from exc
@@ -241,18 +242,22 @@ def install_dashboard(paths: InstallPaths, runner: Runner | None = None) -> None
     ensure_dir(paths.project_dir / "backups")
 
 
-def write_model_routing(paths: InstallPaths, models: list[str], runner: Runner | None = None) -> None:
+def write_model_routing(paths: InstallPaths, combo_name: str, models: list[str], runner: Runner | None = None) -> None:
     if runner and runner.dry_run:
-        runner.log("would write model-routing.json with deepseek-free-first policy")
+        runner.log(f"would write model-routing.json for 9Router combo {combo_name}")
         return
     if not models:
-        raise RuntimeError("cannot write model routing without 9Router models")
-    deepseek = next((m for m in models if "deepseek" in m.lower() and ("free" in m.lower() or ":free" in m.lower())), None)
-    fast = deepseek or choose_9router_model(models)
-    premium = next((m for m in models if m != fast), fast)
+        raise RuntimeError("cannot write model routing without free 9Router models")
     data = {
-        "policy": "deepseek-free-first",
-        "models": [{"id": premium, "tier": "premium"}, {"id": fast, "tier": "fast"}],
+        "policy": "9router-free-combo-round-robin",
+        "combo": {
+            "name": combo_name,
+            "strategy": "round-robin",
+            "priority": "deepseek-first",
+            "members": models,
+            "preferred_model": choose_9router_model(models),
+        },
+        "models": [{"id": combo_name, "tier": "fast"}],
         "complex_keywords": ["code", "debug", "architecture", "strategy", "multi-step", "longform", "reason"],
         "simple_keywords": ["short", "quick", "summary", "format", "caption", "rewrite"],
     }
@@ -260,46 +265,60 @@ def write_model_routing(paths: InstallPaths, models: list[str], runner: Runner |
 
 
 def choose_9router_model(models: list[str]) -> str:
-    if not models:
-        raise RuntimeError("9Router returned no models; connect a free provider in the 9Router dashboard, then rerun update")
-    ranked = sorted(
-        models,
-        key=lambda m: (
-            0
-            if ("deepseek" in m.lower() and ("free" in m.lower() or m.lower().startswith(("kr/", "oc/", "opencode/"))))
-            else 1
-            if "deepseek" in m.lower()
-            else 2
-            if ("free" in m.lower() or m.lower().startswith(("kr/", "oc/", "opencode/")))
-            else 3
-            if "auto" in m.lower()
-            else 4,
-            m,
-        ),
-    )
-    return ranked[0]
+    return choose_router_model(models)
 
 
-def configure_hermes_for_9router(runner: Runner, paths: InstallPaths, models: list[str]) -> str:
-    selected = choose_9router_model(models)
+def configure_hermes_for_9router(runner: Runner, paths: InstallPaths, combo_name: str, api_key: str) -> str:
     if runner.dry_run:
-        runner.log(f"would configure Hermes provider custom -> 9Router with model {selected}")
-        return selected
-    api_key = router_local_api_key(paths) or os.environ.get("OPENAI_API_KEY") or "gooros-local-9router"
-    merge_env_values(paths.hermes_home / ".env", {"OPENAI_API_KEY": api_key})
-    runner.run(["hermes", "config", "set", "--force", "model.provider", "custom"], timeout=30)
-    runner.run(["hermes", "config", "set", "--force", "model.base_url", "http://127.0.0.1:20128/v1"], timeout=30)
-    runner.run(["hermes", "config", "set", "--force", "model.default", selected], timeout=30)
-    return selected
+        runner.log(f"would configure Hermes root + profiles -> 9Router combo {combo_name}")
+        return combo_name
+    if not api_key:
+        raise RuntimeError("cannot configure Hermes for 9Router without a real 9Router API key")
+    targets: list[tuple[str, Path, list[str]]] = [
+        ("orchestrator", paths.hermes_home, ["hermes"]),
+    ]
+    for agent in SPECIALISTS:
+        profile_dir = paths.hermes_home / "profiles" / agent
+        if profile_dir.exists():
+            targets.append((agent, profile_dir, ["hermes", "-p", agent]))
+    for agent, root, command in targets:
+        merge_env_values(root / ".env", {"OPENAI_API_KEY": api_key})
+        runner.run(command + ["config", "set", "--force", "model.provider", "custom"], timeout=30)
+        runner.run(command + ["config", "set", "--force", "model.base_url", "http://127.0.0.1:20128/v1"], timeout=30)
+        runner.run(command + ["config", "set", "--force", "model.default", combo_name], timeout=30)
+        runner.log(f"[9router] Hermes profile {agent} default model -> {combo_name}")
+    return combo_name
 
 
 def discover_9router_models() -> list[str]:
-    try:
-        with urlopen("http://127.0.0.1:20128/v1/models", timeout=5) as response:
-            data = json.loads(response.read().decode("utf-8"))
-            return [m.get("id") for m in data.get("data", []) if isinstance(m, dict) and m.get("id")]
-    except Exception:
-        return []
+    discovery = discover_free_router_models()
+    return discovery.models
+
+
+def ensure_9router_hosted_combo(runner: Runner, paths: InstallPaths) -> tuple[str, list[str], str]:
+    if runner.dry_run:
+        models = ["dry-run/deepseek-free", "dry-run/qwen-free"]
+        runner.log(
+            f"would create/reconcile 9Router API key '{GOOROS_9ROUTER_API_KEY_NAME}', combo "
+            f"{GOOROS_9ROUTER_COMBO_NAME}, and round-robin settings"
+        )
+        return GOOROS_9ROUTER_COMBO_NAME, models, "DRY_RUN_9ROUTER_API_KEY"
+    key_info = ensure_router_api_key(GOOROS_9ROUTER_API_KEY_NAME, preferred_key=router_local_api_key(paths))
+    api_key = str(key_info.get("key") or "").strip()
+    if not api_key:
+        raise RuntimeError("9Router did not return a real API key for Hermes")
+    merge_env_values(paths.secrets_env, {"GOOROS_9ROUTER_API_KEY": api_key})
+    discovery = discover_free_router_models()
+    for warning in discovery.warnings:
+        runner.log(f"[9router] model discovery warning: {warning}")
+    if not discovery.models:
+        raise RuntimeError(
+            "9Router has no free models available for the Gooros combo. Connect at least one working free/free-tier "
+            "provider in the 9Router dashboard, then rerun gooros-hermes update."
+        )
+    ensure_router_combo(GOOROS_9ROUTER_COMBO_NAME, discovery.models, kind="llm")
+    ensure_router_round_robin(sticky_limit=1)
+    return GOOROS_9ROUTER_COMBO_NAME, discovery.models, api_key
 
 
 def _service_account() -> tuple[str, str, str, str]:
@@ -368,6 +387,20 @@ def restart_gateway(runner: Runner) -> None:
     runner.run(["hermes", "gateway", "restart"], check=False, timeout=120)
 
 
+def restart_systemd_services(runner: Runner, *, with_9router: bool) -> None:
+    if os.name != "posix":
+        return
+    if runner.dry_run:
+        runner.log("would restart managed systemd services after 9Router auth/model changes")
+        return
+    services = ["gooros-mission-control.service", "hermes-native-dashboard.service"]
+    if with_9router:
+        services.insert(0, "9router.service")
+    prefix = root_prefix()
+    for service in services:
+        runner.run(prefix + ["systemctl", "restart", service], timeout=120, check=False)
+
+
 def install(args) -> int:
     paths = default_paths(args.hermes_home, args.project_dir, args.config_dir, args.data_dir)
     runner = Runner(dry_run=args.dry_run, verbose=True)
@@ -395,13 +428,17 @@ def install(args) -> int:
     if args.with_9router:
         if not args.dry_run:
             wait_for_9router()
-        models = ["dry-run/deepseek-free"] if args.dry_run else discover_9router_models()
+        combo_name, models, api_key = ensure_9router_hosted_combo(runner, paths)
+        write_model_routing(paths, combo_name, models, runner)
         if not args.dry_run:
-            smoke_9router_model(choose_9router_model(models), router_local_api_key(paths))
-        selected_model = configure_hermes_for_9router(runner, paths, models)
-        write_model_routing(paths, models or [selected_model], runner)
+            if args.systemd or args.with_public_dashboards:
+                write_system_env(runner, paths, config, caddy_hash or "")
+            smoke_9router_model(combo_name, api_key)
+        configure_hermes_for_9router(runner, paths, combo_name, api_key)
         if not args.dry_run:
             restart_gateway(runner)
+            if args.systemd:
+                restart_systemd_services(runner, with_9router=True)
     if args.with_public_dashboards:
         install_public_proxy(runner, paths, config, caddy_hash or "")
     if not args.dry_run:
@@ -435,6 +472,7 @@ def print_install_report(paths: InstallPaths, config: CustomerConfig, caddy_hash
         print(f"Auth password (shown once): {config.dash_password}")
     if with_9router:
         print("Hermes -> 9Router local endpoint: http://127.0.0.1:20128/v1")
+        print(f"Hermes default model: {GOOROS_9ROUTER_COMBO_NAME} (9Router free combo, DeepSeek-first, round-robin)")
         if public:
             print("9Router initial dashboard password: same as dashboard auth password on a fresh install")
         else:

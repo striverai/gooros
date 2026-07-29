@@ -12,9 +12,8 @@ from .configstore import read_caddy_hash, read_customer_files, validate_required
 from .constants import PRODUCT, VERSION
 from .fsutil import atomic_write_json, ensure_dir, read_json, sha256_file, utc_stamp
 from .installer import (
-    choose_9router_model,
     configure_hermes_for_9router,
-    discover_9router_models,
+    ensure_9router_hosted_combo,
     install_9router_if_requested,
     install_dashboard,
     install_logging,
@@ -25,13 +24,13 @@ from .installer import (
     install_telegram_routing,
     preflight,
     restart_gateway,
+    restart_systemd_services,
     smoke_9router_model,
     wait_for_9router,
     write_model_routing,
     write_system_env,
 )
 from .paths import InstallPaths, default_paths
-from .proxy import router_local_api_key
 from .release import (
     SKIP_DIRS,
     compare_versions,
@@ -331,11 +330,15 @@ def cmd_apply_staged(args: object) -> int:
         install_systemd_services(runner, paths, with_9router=with_9router)
     if with_9router:
         wait_for_9router()
-        models = discover_9router_models()
-        smoke_9router_model(choose_9router_model(models), router_local_api_key(paths))
-        selected_model = configure_hermes_for_9router(runner, paths, models)
-        write_model_routing(paths, models or [selected_model], runner)
+        combo_name, models, api_key = ensure_9router_hosted_combo(runner, paths)
+        write_model_routing(paths, combo_name, models, runner)
+        if systemd or public:
+            write_system_env(runner, paths, config, pass_hash)
+        smoke_9router_model(combo_name, api_key)
+        configure_hermes_for_9router(runner, paths, combo_name, api_key)
         restart_gateway(runner)
+        if systemd:
+            restart_systemd_services(runner, with_9router=True)
     if public:
         install_public_proxy(runner, paths, config, pass_hash)
 
