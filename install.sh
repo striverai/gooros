@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEFAULT_REPO_URL="https://github.com/<owner>/gooros-hermes.git"
+DEFAULT_REPO_URL="https://github.com/striverai/gooros.git"
 REPO_URL="${GOOROS_HERMES_REPO:-$DEFAULT_REPO_URL}"
 INSTALL_DIR="${GOOROS_HERMES_SOURCE:-$HOME/.local/share/gooros/hermes-mission-control/repo}"
 REF="${GOOROS_HERMES_REF:-main}"
@@ -11,7 +11,7 @@ if [[ "$REPO_URL" == *"<owner>"* || "$REPO_URL" == *"<org>"* ]]; then
 GOOROS_HERMES_REPO is not configured.
 
 Run with your real GitHub repo URL, for example:
-  GOOROS_HERMES_REPO=https://github.com/YOUR_OWNER/gooros-hermes.git bash install.sh
+  GOOROS_HERMES_REPO=https://github.com/striverai/gooros.git bash install.sh
 
 Or replace DEFAULT_REPO_URL in install.sh before publishing.
 EOF
