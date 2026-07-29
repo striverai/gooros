@@ -2,16 +2,18 @@ from __future__ import annotations
 
 import json
 import os
+import getpass
 import shutil
-import socket
+import time
 from pathlib import Path
+from urllib.request import Request, urlopen
 
 from .configstore import CustomerConfig, collect_customer_config, merge_env_values, validate_required, write_customer_files
 from .constants import AGENTS, SPECIALISTS, VERSION
 from .dashboard_patcher import build_live_dashboard
 from .fsutil import atomic_write_json, atomic_write_text, copy_file, ensure_dir
 from .paths import InstallPaths, asset_path, default_paths
-from .proxy import caddy_hash_password, install_public_proxy, root_prefix, sslip_name, write_system_env
+from .proxy import caddy_hash_password, install_public_proxy, root_prefix, router_local_api_key, sslip_name, write_system_env
 from .release import current_source_metadata
 from .runner import Runner
 from .safety import create_snapshot, write_install_state
@@ -62,6 +64,65 @@ def install_9router_if_requested(runner: Runner, *, requested: bool) -> None:
             raise RuntimeError("npm is required to install 9Router")
     if not shutil.which("9router"):
         runner.run(["npm", "install", "-g", "9router"], timeout=600)
+
+
+def _http_ok(url: str, timeout: float = 5.0) -> tuple[bool, str]:
+    try:
+        request = Request(url, headers={"User-Agent": "gooros-hermes-installer"})
+        with urlopen(request, timeout=timeout) as response:
+            return 200 <= response.status < 500, str(response.status)
+    except Exception as exc:
+        return False, str(exc)
+
+
+def wait_for_9router(timeout_seconds: int = 60) -> None:
+    deadline = time.time() + timeout_seconds
+    detail = "not checked"
+    while time.time() < deadline:
+        ok, detail = _http_ok("http://127.0.0.1:20128/v1/models", timeout=3)
+        if ok:
+            return
+        time.sleep(2)
+    raise RuntimeError(f"9Router did not become reachable at http://127.0.0.1:20128/v1/models: {detail}")
+
+
+def _provider_smoke_enabled() -> bool:
+    return os.environ.get("GOOROS_9ROUTER_SMOKE", "1").strip().lower() not in {"0", "false", "no", "off"}
+
+
+def smoke_9router_model(model: str, api_key: str = "", timeout: int = 90) -> None:
+    if not _provider_smoke_enabled():
+        return
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": "Reply with OK only."}],
+        "max_tokens": 8,
+        "stream": False,
+    }
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "gooros-hermes-installer",
+    }
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    try:
+        request = Request(
+            "http://127.0.0.1:20128/v1/chat/completions",
+            data=json.dumps(payload).encode("utf-8"),
+            headers=headers,
+            method="POST",
+        )
+        with urlopen(request, timeout=timeout) as response:
+            body = response.read(256 * 1024).decode("utf-8", errors="replace")
+        data = json.loads(body)
+        if not data.get("choices"):
+            raise RuntimeError(f"unexpected response: {body[:500]}")
+    except Exception as exc:
+        raise RuntimeError(
+            "9Router model smoke test failed. Connect a working free provider/model in the 9Router dashboard "
+            "or set GOOROS_9ROUTER_SMOKE=0 only for a non-provider update. "
+            f"model={model}; detail={exc}"
+        ) from exc
 
 
 def install_shared_scripts(paths: InstallPaths, runner: Runner | None = None) -> None:
@@ -185,9 +246,9 @@ def write_model_routing(paths: InstallPaths, models: list[str], runner: Runner |
         runner.log("would write model-routing.json with deepseek-free-first policy")
         return
     if not models:
-        models = ["deepseek/deepseek-chat:free", "openrouter/auto"]
+        raise RuntimeError("cannot write model routing without 9Router models")
     deepseek = next((m for m in models if "deepseek" in m.lower() and ("free" in m.lower() or ":free" in m.lower())), None)
-    fast = deepseek or models[0]
+    fast = deepseek or choose_9router_model(models)
     premium = next((m for m in models if m != fast), fast)
     data = {
         "policy": "deepseek-free-first",
@@ -200,17 +261,32 @@ def write_model_routing(paths: InstallPaths, models: list[str], runner: Runner |
 
 def choose_9router_model(models: list[str]) -> str:
     if not models:
-        return "deepseek/deepseek-chat:free"
-    return (
-        next((m for m in models if "deepseek" in m.lower() and ("free" in m.lower() or ":free" in m.lower())), None)
-        or next((m for m in models if "deepseek" in m.lower()), None)
-        or next((m for m in models if "free" in m.lower() or ":free" in m.lower()), None)
-        or models[0]
+        raise RuntimeError("9Router returned no models; connect a free provider in the 9Router dashboard, then rerun update")
+    ranked = sorted(
+        models,
+        key=lambda m: (
+            0
+            if ("deepseek" in m.lower() and ("free" in m.lower() or m.lower().startswith(("kr/", "oc/", "opencode/"))))
+            else 1
+            if "deepseek" in m.lower()
+            else 2
+            if ("free" in m.lower() or m.lower().startswith(("kr/", "oc/", "opencode/")))
+            else 3
+            if "auto" in m.lower()
+            else 4,
+            m,
+        ),
     )
+    return ranked[0]
 
 
-def configure_hermes_for_9router(runner: Runner, models: list[str]) -> str:
+def configure_hermes_for_9router(runner: Runner, paths: InstallPaths, models: list[str]) -> str:
     selected = choose_9router_model(models)
+    if runner.dry_run:
+        runner.log(f"would configure Hermes provider custom -> 9Router with model {selected}")
+        return selected
+    api_key = router_local_api_key(paths) or os.environ.get("OPENAI_API_KEY") or "gooros-local-9router"
+    merge_env_values(paths.hermes_home / ".env", {"OPENAI_API_KEY": api_key})
     runner.run(["hermes", "config", "set", "--force", "model.provider", "custom"], timeout=30)
     runner.run(["hermes", "config", "set", "--force", "model.base_url", "http://127.0.0.1:20128/v1"], timeout=30)
     runner.run(["hermes", "config", "set", "--force", "model.default", selected], timeout=30)
@@ -218,14 +294,36 @@ def configure_hermes_for_9router(runner: Runner, models: list[str]) -> str:
 
 
 def discover_9router_models() -> list[str]:
-    import urllib.request
-
     try:
-        with urllib.request.urlopen("http://127.0.0.1:20128/v1/models", timeout=5) as response:
+        with urlopen("http://127.0.0.1:20128/v1/models", timeout=5) as response:
             data = json.loads(response.read().decode("utf-8"))
             return [m.get("id") for m in data.get("data", []) if isinstance(m, dict) and m.get("id")]
     except Exception:
         return []
+
+
+def _service_account() -> tuple[str, str, str, str]:
+    if os.name != "posix":
+        return "", "", "", ""
+    import grp
+    import pwd
+
+    user = getpass.getuser()
+    record = pwd.getpwnam(user)
+    group = grp.getgrgid(record.pw_gid).gr_name
+    path = os.environ.get("PATH", "")
+    extras = ["/usr/local/bin", "/usr/bin", "/bin", str(Path(record.pw_dir) / ".local" / "bin")]
+    for item in extras:
+        if item and item not in path.split(":"):
+            path = f"{path}:{item}" if path else item
+    return user, group, record.pw_dir, path
+
+
+def _required_bin(name: str) -> str:
+    found = shutil.which(name)
+    if found:
+        return found
+    raise RuntimeError(f"required executable not found for systemd service: {name}")
 
 
 def install_systemd_services(runner: Runner, paths: InstallPaths, *, with_9router: bool) -> None:
@@ -238,16 +336,36 @@ def install_systemd_services(runner: Runner, paths: InstallPaths, *, with_9route
     services = ["gooros-mission-control.service", "hermes-native-dashboard.service"]
     if with_9router:
         services.append("9router.service")
+    user, group, home, service_path = _service_account()
+    replacements = {
+        "%GOOROS_SERVICE_USER%": user,
+        "%GOOROS_SERVICE_GROUP%": group,
+        "%GOOROS_SERVICE_HOME%": home,
+        "%GOOROS_SERVICE_PATH%": service_path,
+        "%GOOROS_PROJECT_DIR%": str(paths.project_dir),
+        "%GOOROS_PYTHON3%": _required_bin("python3"),
+        "%GOOROS_HERMES_BIN%": _required_bin("hermes"),
+        "%GOOROS_9ROUTER_BIN%": _required_bin("9router") if with_9router else "/usr/bin/false",
+    }
     for service in services:
         src = asset_path("proxy", "systemd", service)
         text = src.read_text(encoding="utf-8")
-        text = text.replace("%h/agent-mission-control", str(paths.project_dir))
+        for old, new in replacements.items():
+            text = text.replace(old, new)
+        if "%GOOROS_" in text:
+            raise RuntimeError(f"unrendered systemd placeholder in {service}")
         tmp = Path("/tmp") / service
         atomic_write_text(tmp, text)
         runner.run(prefix + ["install", "-m", "0644", str(tmp), f"/etc/systemd/system/{service}"])
     runner.run(prefix + ["systemctl", "daemon-reload"], timeout=60)
     for service in services:
         runner.run(prefix + ["systemctl", "enable", "--now", service], timeout=120, check=False)
+    for service in services:
+        runner.run(prefix + ["systemctl", "restart", service], timeout=120, check=False)
+
+
+def restart_gateway(runner: Runner) -> None:
+    runner.run(["hermes", "gateway", "restart"], check=False, timeout=120)
 
 
 def install(args) -> int:
@@ -272,12 +390,18 @@ def install(args) -> int:
     install_logging(paths, runner)
     install_telegram_routing(runner, paths, config)
     install_dashboard(paths, runner)
-    if args.with_9router:
-        models = [] if args.dry_run else discover_9router_models()
-        selected_model = configure_hermes_for_9router(runner, models)
-        write_model_routing(paths, models or [selected_model], runner)
     if args.systemd:
         install_systemd_services(runner, paths, with_9router=args.with_9router)
+    if args.with_9router:
+        if not args.dry_run:
+            wait_for_9router()
+        models = ["dry-run/deepseek-free"] if args.dry_run else discover_9router_models()
+        if not args.dry_run:
+            smoke_9router_model(choose_9router_model(models), router_local_api_key(paths))
+        selected_model = configure_hermes_for_9router(runner, paths, models)
+        write_model_routing(paths, models or [selected_model], runner)
+        if not args.dry_run:
+            restart_gateway(runner)
     if args.with_public_dashboards:
         install_public_proxy(runner, paths, config, caddy_hash or "")
     if not args.dry_run:
@@ -292,7 +416,7 @@ def install(args) -> int:
                 **current_source_metadata(),
             },
         )
-    failures = [] if args.dry_run else verify_install(paths, public=args.with_public_dashboards)
+    failures = [] if args.dry_run else verify_install(paths, public=args.with_public_dashboards, with_9router=args.with_9router)
     print_install_report(paths, config, caddy_hash, failures, public=args.with_public_dashboards, with_9router=args.with_9router, dry_run=args.dry_run)
     return 1 if failures else 0
 
@@ -311,6 +435,10 @@ def print_install_report(paths: InstallPaths, config: CustomerConfig, caddy_hash
         print(f"Auth password (shown once): {config.dash_password}")
     if with_9router:
         print("Hermes -> 9Router local endpoint: http://127.0.0.1:20128/v1")
+        if public:
+            print("9Router initial dashboard password: same as dashboard auth password on a fresh install")
+        else:
+            print("9Router initial dashboard password: stored in the local Gooros secrets file")
     if dry_run:
         print("\nVerification: skipped (dry-run/plan only)")
     elif failures:

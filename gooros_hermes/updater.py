@@ -12,6 +12,7 @@ from .configstore import read_caddy_hash, read_customer_files, validate_required
 from .constants import PRODUCT, VERSION
 from .fsutil import atomic_write_json, ensure_dir, read_json, sha256_file, utc_stamp
 from .installer import (
+    choose_9router_model,
     configure_hermes_for_9router,
     discover_9router_models,
     install_9router_if_requested,
@@ -23,10 +24,14 @@ from .installer import (
     install_systemd_services,
     install_telegram_routing,
     preflight,
+    restart_gateway,
+    smoke_9router_model,
+    wait_for_9router,
     write_model_routing,
     write_system_env,
 )
 from .paths import InstallPaths, default_paths
+from .proxy import router_local_api_key
 from .release import (
     SKIP_DIRS,
     compare_versions,
@@ -320,17 +325,21 @@ def cmd_apply_staged(args: object) -> int:
     install_logging(paths, runner)
     install_telegram_routing(runner, paths, config)
     install_dashboard(paths, runner)
-    if with_9router:
-        models = discover_9router_models()
-        selected_model = configure_hermes_for_9router(runner, models)
-        write_model_routing(paths, models or [selected_model], runner)
+    if systemd or public:
+        write_system_env(runner, paths, config, pass_hash)
     if systemd:
         install_systemd_services(runner, paths, with_9router=with_9router)
+    if with_9router:
+        wait_for_9router()
+        models = discover_9router_models()
+        smoke_9router_model(choose_9router_model(models), router_local_api_key(paths))
+        selected_model = configure_hermes_for_9router(runner, paths, models)
+        write_model_routing(paths, models or [selected_model], runner)
+        restart_gateway(runner)
     if public:
-        write_system_env(runner, paths, config, pass_hash)
         install_public_proxy(runner, paths, config, pass_hash)
 
-    failures = [] if args.skip_verify else verify_install(paths, public=public)
+    failures = [] if args.skip_verify else verify_install(paths, public=public, with_9router=with_9router)
     if failures:
         raise RuntimeError("post-update verification failed:\n- " + "\n- ".join(failures))
 

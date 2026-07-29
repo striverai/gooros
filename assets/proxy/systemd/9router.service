@@ -5,14 +5,17 @@ Wants=network-online.target
 
 [Service]
 Type=simple
+User=%GOOROS_SERVICE_USER%
+Group=%GOOROS_SERVICE_GROUP%
 EnvironmentFile=-/etc/gooros/hermes-mission-control.env
+Environment=HOME=%GOOROS_SERVICE_HOME%
+Environment=PATH=%GOOROS_SERVICE_PATH%
 Environment=HOST=127.0.0.1
 Environment=HOSTNAME=127.0.0.1
 Environment=PORT=20128
-ExecStart=/usr/bin/env 9router
+ExecStart=%GOOROS_9ROUTER_BIN%
 Restart=on-failure
 RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
-

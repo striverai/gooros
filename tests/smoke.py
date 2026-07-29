@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from gooros_hermes.dashboard_patcher import build_live_dashboard
+from gooros_hermes.installer import choose_9router_model
 from gooros_hermes.release import read_release_manifest, validate_release_manifest
 from gooros_hermes import __version__
 from gooros_hermes.constants import VERSION
@@ -57,7 +58,21 @@ def main() -> int:
             assert old_copy not in text
         assert "DEMO_" not in text
         assert "hard-coded reply" not in text
+        old_demo_data = (
+            "Pulled 14 sources",
+            "Routing directive #412",
+            "Sweeping 14 sources",
+            "node 0x9f",
+            "claude-sonnet-4.5",
+            "gemini-2.5-pro",
+            "text-embed-3-large",
+            "Outline next week's video script",
+        )
+        for old in old_demo_data:
+            assert old not in text
         assert "hydrate(); connectSSE(); startPolling();" in text
+    assert choose_9router_model(["openai/gpt-4o", "kr/deepseek-3.2", "oc/qwen3-coder"]) == "kr/deepseek-3.2"
+    assert choose_9router_model(["paid/model", "free/model"]) == "free/model"
     print("smoke ok")
     return 0 if ok else 1
 

@@ -12,6 +12,14 @@ DEMO_TOKENS = (
     "DEMO_CONTENT_DOCS",
     "DEMO_CONTENT_TEXT",
     "DEMO_GOOROS_CRON",
+    "Pulled 14 sources",
+    "Routing directive #412",
+    "Sweeping 14 sources",
+    "node 0x9f",
+    "claude-sonnet-4.5",
+    "gemini-2.5-pro",
+    "text-embed-3-large",
+    "Outline next week's video script",
     "template preview",
     "hard-coded reply",
 )
@@ -23,8 +31,84 @@ def _replace_required(text: str, old: str, new: str) -> str:
     return text.replace(old, new)
 
 
+def _sub_required(text: str, pattern: str, repl: str, *, flags: int = 0, label: str = "") -> str:
+    new_text, count = re.subn(pattern, repl, text, count=1, flags=flags)
+    if count != 1:
+        raise RuntimeError(f"dashboard template patch regex anchor not found: {label or pattern[:80]}")
+    return new_text
+
+
 def build_live_dashboard(template_path: Path, output_path: Path) -> None:
     text = template_path.read_text(encoding="utf-8")
+
+    text = _sub_required(
+        text,
+        r"let AGENTS = \[.*?\];\s*let MODELS = \[.*?\];",
+        """let AGENTS = [
+  { code:'A-00', initials:'OR', name:'Orchestrator', role:'Coordinator', channel:'telegram', state:'IDLE', task:'No tasks logged yet.', load:0, tokens:'0 tasks', latency:'-', success:100, tasksToday:0, share:0, defaultModel:'' },
+  { code:'A-01', initials:'SC', name:'Scout', role:'Research', channel:'#scout', state:'IDLE', task:'No tasks logged yet.', load:0, tokens:'0 tasks', latency:'-', success:100, tasksToday:0, share:0, defaultModel:'' },
+  { code:'A-02', initials:'SB', name:'Scribe', role:'Writing', channel:'#scribe', state:'IDLE', task:'No tasks logged yet.', load:0, tokens:'0 tasks', latency:'-', success:100, tasksToday:0, share:0, defaultModel:'' },
+  { code:'A-03', initials:'RE', name:'Reach', role:'Marketing', channel:'#reach', state:'IDLE', task:'No tasks logged yet.', load:0, tokens:'0 tasks', latency:'-', success:100, tasksToday:0, share:0, defaultModel:'' },
+  { code:'A-04', initials:'DV', name:'Dev', role:'Engineering', channel:'#dev', state:'IDLE', task:'No tasks logged yet.', load:0, tokens:'0 tasks', latency:'-', success:100, tasksToday:0, share:0, defaultModel:'' },
+];
+let MODELS = [];""",
+        flags=re.S,
+        label="initial live placeholders",
+    )
+    text = text.replace("gpt-5.5 or MiniMax-M3", "live model routing")
+    text = text.replace("— → gpt-5.5 · — → MiniMax-M3", "- -> live models")
+
+    text = _sub_required(
+        text,
+        r"const LOGS = \(window\.LIVE && LIVE\.logs && LIVE\.logs\.length\) \? LIVE\.logs : \[.*?\];",
+        "const LOGS = (window.LIVE && LIVE.logs && LIVE.logs.length) ? LIVE.logs : [];",
+        flags=re.S,
+        label="overview fallback logs",
+    )
+    text = _sub_required(
+        text,
+        r"const models = \(window\.LIVE && LIVE\.cost && LIVE\.cost\.length\) \? LIVE\.cost : \[.*?\];",
+        "const models = (window.LIVE && LIVE.cost && LIVE.cost.length) ? LIVE.cost : [];",
+        flags=re.S,
+        label="overview fallback models",
+    )
+    text = _sub_required(
+        text,
+        r"const items = \(window\.LIVE && LIVE\.ticker && LIVE\.ticker\.length\) \? LIVE\.ticker : \[.*?\];",
+        "const items = (window.LIVE && LIVE.ticker && LIVE.ticker.length) ? LIVE.ticker : [];",
+        flags=re.S,
+        label="overview fallback ticker",
+    )
+    text = _sub_required(
+        text,
+        r"const alogs = \(window\.LIVE && LIVE\.agentlogs && LIVE\.agentlogs\.length\) \? LIVE\.agentlogs : \[.*?\];",
+        "const alogs = (window.LIVE && LIVE.agentlogs && LIVE.agentlogs.length) ? LIVE.agentlogs : [];",
+        flags=re.S,
+        label="agent logs fallback",
+    )
+    text = _sub_required(
+        text,
+        r"let TASKS = \[.*?\];\s*const COLUMNS =",
+        "let TASKS = [];\nconst COLUMNS =",
+        flags=re.S,
+        label="task board fallback",
+    )
+    text = _sub_required(
+        text,
+        r"const HQ = \{.*?\};\s*const AGENTS_3D = \[.*?\];",
+        """const HQ = { code:'OR', name:'Gooros HQ', role:'Orchestrator', task:'No live task yet.', model:'',
+  state:'IDLE', load:0, tokens:'0 tasks', latency:'-', success:100, tasksToday:0,
+  position:[0,0,0], size:[3.6,6.4,3.6], floors:15, windowCols:6, silhouette:'stepped', accent:EMBER, monument:'conductor' };
+
+const AGENTS_3D = [
+  { code:'SC', name:'Scout', role:'Research', task:'No live task yet.', model:'', state:'IDLE', load:0, tokens:'0 tasks', latency:'-', success:100, tasksToday:0, position:[-7.5,0,-5], size:[2.6,5.6,2.6], floors:14, windowCols:4, silhouette:'tower', accent:SPOTLIGHT, monument:'scout' },
+  { code:'SB', name:'Scribe', role:'Writing', task:'No live task yet.', model:'', state:'IDLE', load:0, tokens:'0 tasks', latency:'-', success:100, tasksToday:0, position:[7.5,0,-5], size:[3.2,4.4,2.4], floors:10, windowCols:5, silhouette:'slab', accent:EMBER, monument:'scribe' },
+  { code:'RE', name:'Reach', role:'Marketing', task:'No live task yet.', model:'', state:'IDLE', load:0, tokens:'0 tasks', latency:'-', success:100, tasksToday:0, position:[-7.5,0,5], size:[2.8,4.8,2.8], floors:12, windowCols:4, silhouette:'twin', accent:EMBER, monument:'herald' },
+  { code:'DV', name:'Dev', role:'Engineering', task:'No live task yet.', model:'', state:'IDLE', load:0, tokens:'0 tasks', latency:'-', success:100, tasksToday:0, position:[7.5,0,5], size:[2.6,6.4,2.6], floors:16, windowCols:4, silhouette:'tower', accent:EMBER, monument:'smith' },
+];""",
+        flags=re.S,
+        label="office fallback",
+    )
 
     text = re.sub(r"^\s*let DEMO_CONTENT_DOCS = .*?;\s*$\n?", "", text, flags=re.M)
     text = re.sub(r"^\s*const DEMO_CONTENT_TEXT = .*?;\s*$\n?", "", text, flags=re.M)
@@ -149,6 +233,35 @@ def build_live_dashboard(template_path: Path, output_path: Path) -> None:
         text,
         "  applyState(DEMO_STATE);   // frozen real snapshot — no server, no SSE, no polling",
         "  hydrate(); connectSSE(); startPolling();",
+    )
+    text = _sub_required(
+        text,
+        r"\s*setHero\('routing-split', `\$\{r\.premium_calls\|\|0\}.*?MiniMax-M3`\);",
+        "\n    const usageNames = (d.model_usage || []).map(m => m.name).filter(Boolean);\n    const premiumName = usageNames[0] || 'premium';\n    const fastName = usageNames[1] || 'fast';\n    setHero('routing-split', `${r.premium_calls||0} -> ${premiumName} · ${r.fast_calls||0} -> ${fastName}`);",
+        flags=re.S,
+        label="routing split model names",
+    )
+    text = _sub_required(
+        text,
+        r"\s*if \(d\.routing && d\.routing\.total\) LIVE\.ticker\.push\(\{src:'ROUTER', msg:`complexity routing.*?MiniMax-M3`\}\);",
+        "\n    if (d.routing && d.routing.total) LIVE.ticker.push({src:'ROUTER', msg:`complexity routing · ${d.routing.premium_calls} -> ${premiumName} · ${d.routing.fast_calls} -> ${fastName}`});",
+        flags=re.S,
+        label="routing ticker model names",
+    )
+    text = _replace_required(
+        text,
+        "  const totalShare = AGENTS.reduce((s,a)=>s+a.share,0);",
+        "  const rawShare = AGENTS.reduce((s,a)=>s+a.share,0);\n  const totalShare = rawShare || AGENTS.length;",
+    )
+    text = _replace_required(
+        text,
+        "    const pct = a.share/totalShare;",
+        "    const pct = rawShare ? a.share/totalShare : 1/totalShare;",
+    )
+    text = _replace_required(
+        text,
+        "${totalShare}%</text>",
+        "${rawShare}%</text>",
     )
     text = re.sub(r">v1\.0<", f">v{VERSION}<", text, count=1)
 

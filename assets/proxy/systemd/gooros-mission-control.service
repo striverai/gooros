@@ -5,14 +5,17 @@ Wants=network-online.target
 
 [Service]
 Type=simple
+User=%GOOROS_SERVICE_USER%
+Group=%GOOROS_SERVICE_GROUP%
 EnvironmentFile=-/etc/gooros/hermes-mission-control.env
+Environment=HOME=%GOOROS_SERVICE_HOME%
+Environment=PATH=%GOOROS_SERVICE_PATH%
 Environment=HOST=127.0.0.1
 Environment=PORT=51763
-WorkingDirectory=%h/agent-mission-control
-ExecStart=/usr/bin/env python3 %h/agent-mission-control/server.py
+WorkingDirectory=%GOOROS_PROJECT_DIR%
+ExecStart=%GOOROS_PYTHON3% %GOOROS_PROJECT_DIR%/server.py
 Restart=on-failure
 RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
-

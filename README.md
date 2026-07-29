@@ -6,7 +6,7 @@ Safe installer/updater for a 5-agent Hermes Mission Control setup:
 - Specialist profiles: Scout, Scribe, Reach, Dev.
 - Telegram topic routing.
 - Local agent logging and cleanup.
-- Live Mission Control dashboard.
+- Live Mission Control dashboard with no demo-data fallback.
 - Hermes native dashboard.
 - 9Router dashboard and local OpenAI-compatible endpoint.
 - Optional public HTTPS URLs through sslip.io + Caddy + auth.
@@ -49,7 +49,9 @@ You can also set `TELEGRAM_BOT_TOKEN` in the shell and pass values as flags:
 
 ## Fresh Install
 
-Run from a Linux VPS as the target user. Use `--systemd` only when the user has root/sudo rights.
+Run from a Linux VPS as the target user. Do not prefix the whole command with
+`sudo`; the installer asks sudo only for Caddy/systemd files. Use `--systemd`
+only when the user has root/sudo rights.
 
 ```bash
 python3 -m gooros_hermes.cli install \
@@ -97,6 +99,24 @@ https://router.203.0.113.10.sslip.io
 
 Caddy handles free automatic HTTPS renewal. The upstream apps stay bound to localhost.
 
+The installer verifies the local upstreams before reporting success:
+
+```text
+Mission Control: http://127.0.0.1:51763/api/state
+Hermes native:   http://127.0.0.1:9119
+9Router:         http://127.0.0.1:20128/dashboard and /v1/models
+```
+
+For `--with-9router`, the CLI waits for 9Router, discovers available models,
+selects a DeepSeek/free model first when one exists, runs a tiny
+`/v1/chat/completions` smoke test, then switches Hermes to
+`model.provider=custom` and `model.base_url=http://127.0.0.1:20128/v1`.
+On a fresh install, 9Router's initial dashboard password is set to the same
+generated dashboard auth password printed once by the installer.
+If the smoke test fails, connect a working free provider in the 9Router
+dashboard and rerun the install/update. For UI-only emergency updates, set
+`GOOROS_9ROUTER_SMOKE=0` before `gooros-hermes update`.
+
 ## Safety Contract
 
 The CLI must not overwrite customer Hermes state:
@@ -115,7 +135,7 @@ gooros-hermes doctor
 gooros-hermes plan --yes --with-hermes --with-9router --with-public-dashboards
 gooros-hermes install --with-hermes --with-9router --with-public-dashboards --systemd
 gooros-hermes update
-gooros-hermes verify --public
+gooros-hermes verify --public --with-9router
 ```
 
 ## Upgrade

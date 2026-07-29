@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import os
+import secrets
 import shutil
 import subprocess
 from pathlib import Path
 
-from .configstore import CustomerConfig
+from .configstore import CustomerConfig, merge_env_values, read_env_values
 from .fsutil import atomic_write_text, ensure_dir
 from .paths import InstallPaths, asset_path
 from .runner import Runner
@@ -97,6 +98,16 @@ def install_public_proxy(runner: Runner, paths: InstallPaths, config: CustomerCo
 
 
 def write_system_env(runner: Runner, paths: InstallPaths, config: CustomerConfig, pass_hash: str) -> None:
+    router_secrets = ensure_router_secrets(paths, config) if not runner.dry_run else {
+        "GOOROS_9ROUTER_API_KEY": "DRY_RUN_9ROUTER_API_KEY",
+        "GOOROS_9ROUTER_API_KEY_SECRET": "DRY_RUN_9ROUTER_API_KEY_SECRET",
+        "GOOROS_9ROUTER_JWT_SECRET": "DRY_RUN_9ROUTER_JWT_SECRET",
+        "GOOROS_9ROUTER_MACHINE_ID_SALT": "DRY_RUN_9ROUTER_MACHINE_ID_SALT",
+        "GOOROS_9ROUTER_INITIAL_PASSWORD": "DRY_RUN_9ROUTER_INITIAL_PASSWORD",
+    }
+    router_data_dir = paths.data_dir / "9router"
+    if not runner.dry_run:
+        ensure_dir(router_data_dir, 0o700)
     env_text = "\n".join(
         [
             f"HERMES_HOME={paths.hermes_home}",
@@ -105,6 +116,20 @@ def write_system_env(runner: Runner, paths: InstallPaths, config: CustomerConfig
             f"BOARD_DB={paths.project_dir / 'board.db'}",
             f"CONTENT_DIR={paths.project_dir / 'content'}",
             f"TELEGRAM_HOME_CHANNEL={config.telegram_home_channel}",
+            f"OPENAI_API_KEY={router_secrets['GOOROS_9ROUTER_API_KEY']}",
+            f"GOOROS_9ROUTER_API_KEY={router_secrets['GOOROS_9ROUTER_API_KEY']}",
+            f"API_KEY_SECRET={router_secrets['GOOROS_9ROUTER_API_KEY_SECRET']}",
+            f"JWT_SECRET={router_secrets['GOOROS_9ROUTER_JWT_SECRET']}",
+            f"MACHINE_ID_SALT={router_secrets['GOOROS_9ROUTER_MACHINE_ID_SALT']}",
+            f"INITIAL_PASSWORD={router_secrets['GOOROS_9ROUTER_INITIAL_PASSWORD']}",
+            f"DATA_DIR={router_data_dir}",
+            "NODE_ENV=production",
+            "BASE_URL=http://127.0.0.1:20128",
+            "NEXT_PUBLIC_BASE_URL=http://127.0.0.1:20128",
+            "CLOUD_URL=https://9router.com",
+            "NEXT_PUBLIC_CLOUD_URL=https://9router.com",
+            f"AUTH_COOKIE_SECURE={'true' if pass_hash else 'false'}",
+            "REQUIRE_API_KEY=false",
             f"GOOROS_ACME_EMAIL={config.acme_email}",
             f"GOOROS_DASH_USER={config.dash_user}",
             f"GOOROS_DASH_PASS_HASH={pass_hash}",
@@ -132,3 +157,25 @@ def verify_public_proxy(runner: Runner, config: CustomerConfig) -> list[str]:
         if code != "401":
             failures.append(f"{host} without credentials returned {code}, expected 401")
     return failures
+
+
+def router_local_api_key(paths: InstallPaths) -> str:
+    return read_env_values(paths.secrets_env).get("GOOROS_9ROUTER_API_KEY", "")
+
+
+def ensure_router_secrets(paths: InstallPaths, config: CustomerConfig) -> dict[str, str]:
+    existing = read_env_values(paths.secrets_env)
+    values = {
+        "GOOROS_9ROUTER_API_KEY": existing.get("GOOROS_9ROUTER_API_KEY") or "gooros-local-" + secrets.token_urlsafe(24),
+        "GOOROS_9ROUTER_API_KEY_SECRET": existing.get("GOOROS_9ROUTER_API_KEY_SECRET") or secrets.token_urlsafe(48),
+        "GOOROS_9ROUTER_JWT_SECRET": existing.get("GOOROS_9ROUTER_JWT_SECRET") or secrets.token_urlsafe(48),
+        "GOOROS_9ROUTER_MACHINE_ID_SALT": existing.get("GOOROS_9ROUTER_MACHINE_ID_SALT") or secrets.token_urlsafe(32),
+        "GOOROS_9ROUTER_INITIAL_PASSWORD": (
+            existing.get("GOOROS_9ROUTER_INITIAL_PASSWORD")
+            or os.environ.get("GOOROS_9ROUTER_INITIAL_PASSWORD")
+            or config.dash_password
+            or secrets.token_urlsafe(24)
+        ),
+    }
+    merge_env_values(paths.secrets_env, values)
+    return values

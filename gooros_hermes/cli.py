@@ -74,6 +74,7 @@ def build_parser() -> argparse.ArgumentParser:
     verify_p = sub.add_parser("verify", help="Verify an installed system")
     add_common_paths(verify_p)
     verify_p.add_argument("--public", action="store_true")
+    verify_p.add_argument("--with-9router", action="store_true")
 
     doctor_p = sub.add_parser("doctor", help="Inspect current machine without mutating")
     add_common_paths(doctor_p)
@@ -140,7 +141,7 @@ def main(argv: list[str] | None = None) -> int:
             return install(args)
         if args.command == "verify":
             paths = default_paths(args.hermes_home, args.project_dir, args.config_dir, args.data_dir)
-            failures = verify_install(paths, public=args.public)
+            failures = verify_install(paths, public=args.public, with_9router=args.with_9router)
             if failures:
                 for failure in failures:
                     print(f"FAIL: {failure}")

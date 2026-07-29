@@ -178,6 +178,10 @@ def _read_env_file(path: Path) -> dict[str, str]:
     return values
 
 
+def read_env_values(path: Path) -> dict[str, str]:
+    return _read_env_file(path)
+
+
 def merge_env_values(path: Path, updates: dict[str, str]) -> None:
     clean_updates = {}
     for key, value in updates.items():
@@ -241,6 +245,7 @@ def read_caddy_hash(paths: InstallPaths) -> str:
 
 def write_customer_files(paths: InstallPaths, config: CustomerConfig, caddy_hash: str | None = None) -> None:
     ensure_dir(paths.config_dir, 0o700)
+    existing_secrets = _read_env_file(paths.secrets_env)
     public = config.as_flat()
     text = "\n".join(f"{k}: {v}" for k, v in public.items()) + "\n"
     atomic_write_text(paths.customer_config, text, mode=0o600)
@@ -255,4 +260,12 @@ def write_customer_files(paths: InstallPaths, config: CustomerConfig, caddy_hash
         env_lines.append(f"GOOROS_TELEGRAM_ALLOWED_USERS={config.telegram_allowed_users}")
     if caddy_hash:
         env_lines.append(f"GOOROS_DASH_PASS_HASH={caddy_hash}")
+    preserved_prefixes = ("GOOROS_9ROUTER_",)
+    preserved_keys = {"OPENAI_API_KEY"}
+    written = {line.split("=", 1)[0] for line in env_lines if "=" in line}
+    for key in sorted(existing_secrets):
+        if key in written:
+            continue
+        if key in preserved_keys or key.startswith(preserved_prefixes):
+            env_lines.append(f"{key}={existing_secrets[key]}")
     atomic_write_text(paths.secrets_env, "\n".join(env_lines) + "\n", mode=0o600)

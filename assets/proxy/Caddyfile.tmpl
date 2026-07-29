@@ -29,5 +29,8 @@
 	@openai_api path /v1/*
 	respond @openai_api "9Router API is local-only on this install" 403
 
+	@router_root path /
+	redir @router_root /dashboard 302
+
 	reverse_proxy 127.0.0.1:20128
 }

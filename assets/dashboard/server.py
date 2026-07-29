@@ -45,6 +45,22 @@ PRIORITY_MAP = {"high": "P1", "medium": "P2", "low": "P3"}
 WORKING_AGENTS: set[str] = set()
 WORKING_LOCK = threading.Lock()
 STATE_CACHE: tuple[float, dict] = (0.0, {})
+LIVE_DASHBOARD_TOKENS = (
+    "DEMO_STATE",
+    "DEMO_CHAT",
+    "DEMO_CONTENT_DOCS",
+    "DEMO_CONTENT_TEXT",
+    "DEMO_GOOROS_CRON",
+    "Pulled 14 sources",
+    "Routing directive #412",
+    "Sweeping 14 sources",
+    "node 0x9f",
+    "Outline next week's video script",
+    "claude-sonnet-4.5",
+    "gemini-2.5-pro",
+    "text-embed-3-large",
+    "hard-coded reply",
+)
 
 
 def utcnow() -> str:
@@ -107,21 +123,18 @@ def init_board_db() -> None:
             );
             """
         )
-        count = conn.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
-        if count == 0:
-            seeds = [
-                ("seed-outline-script", "Outline next week's video script", "pending", "high"),
-                ("seed-sponsor-emails", "Reply to sponsor and collab emails", "pending", "medium"),
-                ("seed-edit-video", "Edit this week's YouTube video", "in_progress", "high"),
-                ("seed-launch-newsletter", "Write the launch-day newsletter", "in_progress", "medium"),
-                ("seed-publish-blog", "Publish the new blog post", "done", "medium"),
-                ("seed-social-posts", "Schedule this week's social posts", "done", "low"),
-            ]
-            now = utcnow()
-            conn.executemany(
-                "INSERT INTO tasks(id,title,status,priority,notes,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
-                [(i, t, s, p, "", now, now) for i, t, s, p in seeds],
-            )
+
+
+def validate_live_dashboard() -> None:
+    index = PROJECT_DIR / "index.html"
+    if not index.exists():
+        raise RuntimeError(f"dashboard index missing: {index}")
+    text = index.read_text(encoding="utf-8", errors="replace")
+    leftovers = [token for token in LIVE_DASHBOARD_TOKENS if token in text]
+    if leftovers:
+        raise RuntimeError(f"dashboard index still contains demo content: {', '.join(leftovers)}")
+    if "hydrate(); connectSSE(); startPolling();" not in text:
+        raise RuntimeError("dashboard index is missing live hydrate/SSE bootstrap")
 
 
 def safe_json(path: Path, default):
@@ -254,7 +267,8 @@ def read_models(rows: list[sqlite3.Row]) -> tuple[list[dict], list[dict], dict]:
     total = sum(counts.values())
     routing_cfg = safe_json(HERMES_HOME / "agents" / "_shared" / "model-routing.json", {})
     tiers = {m.get("id"): m.get("tier", "") for m in routing_cfg.get("models", []) if isinstance(m, dict)}
-    models = [{"id": m, "label": m, "vendor": "", "tier": tiers.get(m, "")} for m in sorted(counts)]
+    model_ids = sorted(set(counts) | set(tiers))
+    models = [{"id": m, "label": m, "vendor": "", "tier": tiers.get(m, "")} for m in model_ids]
     usage = [{"name": m, "count": c, "pct": round(100 * c / total) if total else 0} for m, c in sorted(counts.items(), key=lambda x: -x[1])]
     fast = sum(c for m, c in counts.items() if tiers.get(m) == "fast")
     premium = total - fast
@@ -712,6 +726,7 @@ def main() -> None:
     ensure_dirs()
     init_log_db()
     init_board_db()
+    validate_live_dashboard()
     httpd = ThreadingHTTPServer((HOST, PORT), Handler)
     print(f"Gooros Mission Control serving on http://{HOST}:{PORT}", flush=True)
     httpd.serve_forever()
