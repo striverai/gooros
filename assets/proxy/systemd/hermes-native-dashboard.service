@@ -1,0 +1,15 @@
+[Unit]
+Description=Hermes native dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/gooros/hermes-mission-control.env
+ExecStart=/usr/bin/env hermes dashboard --host 127.0.0.1 --port 9119 --no-open
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+

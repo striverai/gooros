@@ -1,0 +1,2568 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Hermes — Agent Mission Control</title>
+<meta name="description" content="Operator console for the Hermes agentic platform: 5 autonomous agents, live orchestration, telemetry, missions and ledger." />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap">
+
+<script src="https://cdn.tailwindcss.com?plugins=line-clamp"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        ink: 'oklch(0.16 0.012 50)',
+        'ink-2': 'oklch(0.22 0.014 50)',
+        cream: 'oklch(0.97 0.012 75)',
+        ember: 'oklch(0.66 0.22 38)',
+        'ember-soft': 'oklch(0.78 0.16 50)',
+        surface: 'oklch(0.93 0.012 75)',
+        'surface-2': 'oklch(0.89 0.014 70)',
+        secondary: 'oklch(0.92 0.012 75)',
+        muted: 'oklch(0.91 0.012 75)',
+        border: 'oklch(0.85 0.012 70)',
+        'muted-foreground': 'oklch(0.45 0.018 60)',
+        'foreground': 'oklch(0.16 0.012 50)',
+        spotlight: '#00e5ff',
+      },
+      fontFamily: {
+        display: ['"Instrument Serif"', '"Times New Roman"', 'serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      },
+      borderRadius: { '2xl': '20px', '3xl': '28px', '4xl': '32px' },
+      animation: {
+        breathe: 'breathe 3.2s ease-in-out infinite',
+        'pulse-ring': 'pulse-ring 2.4s ease-out infinite',
+        'stream-in': 'stream-in 0.5s cubic-bezier(0.16,1,0.3,1) both',
+        marquee: 'marquee 40s linear infinite',
+        'float-orb': 'float-orb 14s ease-in-out infinite',
+        dash: 'dash 2s linear infinite',
+        'spin-slow': 'spin-slow 28s linear infinite',
+        rise: 'rise 0.8s cubic-bezier(0.16,1,0.3,1) both',
+        ticker: 'ticker 1.4s ease-in-out infinite',
+        ping: 'ping 1.6s cubic-bezier(0,0,0.2,1) infinite',
+      },
+      keyframes: {
+        breathe: { '0%,100%': { opacity: '.5', transform: 'scale(1)' }, '50%': { opacity: '1', transform: 'scale(1.08)' } },
+        'pulse-ring': { '0%': { transform: 'scale(.85)', opacity: '.7' }, '100%': { transform: 'scale(2.2)', opacity: '0' } },
+        'stream-in': { from: { opacity: '0', transform: 'translateY(6px)' }, to: { opacity: '1', transform: 'translateY(0)' } },
+        marquee: { from: { transform: 'translateX(0)' }, to: { transform: 'translateX(-50%)' } },
+        'float-orb': { '0%,100%': { transform: 'translate(0,0) scale(1)' }, '33%': { transform: 'translate(40px,-30px) scale(1.05)' }, '66%': { transform: 'translate(-30px,20px) scale(.97)' } },
+        dash: { to: { strokeDashoffset: '-32' } },
+        'spin-slow': { to: { transform: 'rotate(360deg)' } },
+        rise: { from: { opacity: '0', transform: 'translateY(12px)', filter: 'blur(6px)' }, to: { opacity: '1', transform: 'translateY(0)', filter: 'blur(0)' } },
+        ticker: { '0%,90%,100%': { opacity: '1' }, '92%': { opacity: '.2' } },
+      },
+    },
+  },
+};
+</script>
+<style>
+  html, body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-feature-settings: "ss01", "cv11"; }
+  * { border-color: oklch(0.85 0.012 70); }
+  body {
+    background-color: oklch(0.96 0.012 75);
+    color: oklch(0.16 0.012 50);
+    background-image:
+      radial-gradient(900px 600px at 100% 0%, oklch(0.66 0.22 38 / 0.22), transparent 60%),
+      radial-gradient(700px 500px at 0% 100%, oklch(0.16 0.012 50 / 0.10), transparent 60%),
+      linear-gradient(180deg, oklch(0.97 0.012 75) 0%, oklch(0.94 0.014 70) 100%);
+    background-attachment: fixed;
+    position: relative;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none;
+    background-image: radial-gradient(oklch(0.16 0.012 50 / 0.06) 1px, transparent 1px);
+    background-size: 20px 20px;
+    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+            mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+    z-index: 0;
+  }
+  #app { position: relative; z-index: 1; }
+  ::selection { background: oklch(0.66 0.22 38); color: oklch(0.97 0.012 75); }
+  .dotgrid { background-image: radial-gradient(currentColor 1px, transparent 1.2px); background-size: 14px 14px; }
+  .dotgrid-faint { background-image: radial-gradient(rgb(247 240 225 / 0.09) 1px, transparent 1.2px); background-size: 14px 14px; }
+  .dotgrid-ink-faint { background-image: radial-gradient(rgb(39 31 25 / 0.055) 1px, transparent 1px); background-size: 20px 20px; }
+  .reference-log-card { background-color: oklch(0.97 0.012 75 / 0.15); border: 1px solid oklch(0.97 0.012 75 / 0.20); backdrop-filter: blur(4px); }
+  .hairline { background-image: linear-gradient(90deg, transparent, oklch(0.85 0.012 70), transparent); height:1px; }
+  .status-pulse { position:relative; }
+  .status-pulse::after {
+    content:""; position:absolute; inset:-3px; border-radius:9999px;
+    border:1px solid currentColor; animation: pulse-ring 2.4s ease-out infinite;
+  }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+
+  /* Tailwind CDN parity helpers for non-standard opacity tokens used by the React build */
+  .text-cream\/18 { color: oklch(0.97 0.012 75 / 0.18); }
+  .text-cream\/10 { color: oklch(0.97 0.012 75 / 0.10); }
+  .text-cream\/15 { color: oklch(0.97 0.012 75 / 0.15); }
+  .text-cream\/30 { color: oklch(0.97 0.012 75 / 0.30); }
+  .text-cream\/40 { color: oklch(0.97 0.012 75 / 0.40); }
+  .text-cream\/50 { color: oklch(0.97 0.012 75 / 0.50); }
+  .text-cream\/55 { color: oklch(0.97 0.012 75 / 0.55); }
+  .text-cream\/60 { color: oklch(0.97 0.012 75 / 0.60); }
+  .text-cream\/65 { color: oklch(0.97 0.012 75 / 0.65); }
+  .text-cream\/70 { color: oklch(0.97 0.012 75 / 0.70); }
+  .text-cream\/80 { color: oklch(0.97 0.012 75 / 0.80); }
+  .text-ink\/40 { color: oklch(0.16 0.012 50 / 0.40); }
+  .text-ink\/60 { color: oklch(0.16 0.012 50 / 0.60); }
+  .bg-cream\/5 { background-color: oklch(0.97 0.012 75 / 0.05); }
+  .bg-cream\/8 { background-color: oklch(0.97 0.012 75 / 0.08); }
+  .bg-cream\/10 { background-color: oklch(0.97 0.012 75 / 0.10); }
+  .bg-cream\/12 { background-color: oklch(0.97 0.012 75 / 0.12); }
+  .bg-cream\/15 { background-color: oklch(0.97 0.012 75 / 0.15); }
+  .bg-cream\/25 { background-color: oklch(0.97 0.012 75 / 0.25); }
+  .bg-ink\/95 { background-color: oklch(0.16 0.012 50 / 0.95); }
+  .border-cream\/10 { border-color: oklch(0.97 0.012 75 / 0.10); }
+  .border-cream\/15 { border-color: oklch(0.97 0.012 75 / 0.15); }
+  .border-cream\/20 { border-color: oklch(0.97 0.012 75 / 0.20); }
+  .border-cream\/30 { border-color: oklch(0.97 0.012 75 / 0.30); }
+  .border-cream\/40 { border-color: oklch(0.97 0.012 75 / 0.40); }
+  .border-cream\/55 { border-color: oklch(0.97 0.012 75 / 0.55); }
+  .border-cream\/80 { border-color: oklch(0.97 0.012 75 / 0.80); }
+  .bg-ember\/8 { background-color: oklch(0.66 0.22 38 / 0.08); }
+  .bg-ember\/15 { background-color: oklch(0.66 0.22 38 / 0.15); }
+  .bg-ember\/20 { background-color: oklch(0.66 0.22 38 / 0.20); }
+  .bg-ember\/30 { background-color: oklch(0.66 0.22 38 / 0.30); }
+  .bg-ember\/40 { background-color: oklch(0.66 0.22 38 / 0.40); }
+  .border-ember { border-color: oklch(0.66 0.22 38); }
+  .border-ember\/30 { border-color: oklch(0.66 0.22 38 / 0.30); }
+  .border-ember\/40 { border-color: oklch(0.66 0.22 38 / 0.40); }
+  .border-border\/60 { border-color: oklch(0.85 0.012 70 / 0.60); }
+  .border-ink\/40 { border-color: oklch(0.16 0.012 50 / 0.40); }
+  .hover\:bg-ember\/20:hover { background-color: oklch(0.66 0.22 38 / 0.20); }
+  .hover\:bg-cream\/10:hover { background-color: oklch(0.97 0.012 75 / 0.10); }
+  .hover\:bg-cream\/25:hover { background-color: oklch(0.97 0.012 75 / 0.25); }
+  .hover\:border-ink\/30:hover { border-color: oklch(0.16 0.012 50 / 0.30); }
+  .hover\:border-ink\/40:hover { border-color: oklch(0.16 0.012 50 / 0.40); }
+  .hover\:border-cream\/30:hover { border-color: oklch(0.97 0.012 75 / 0.30); }
+  .focus\:ring-cream\/40:focus { --tw-ring-color: oklch(0.97 0.012 75 / 0.40); }
+  /* lucide icon defaults */
+  [data-lucide] { width:1em; height:1em; }
+  .icon-3 { width:.75rem; height:.75rem; }
+  .icon-3-5 { width:.875rem; height:.875rem; }
+  .icon-4 { width:1rem; height:1rem; }
+  /* Hide hash route panels */
+  .route { display: none; }
+  .route.active { display: block; }
+  /* Fix: live re-render (hydrate) recreates cards on hidden tabs, where the
+     rise entrance never plays and leaves them stuck at opacity:0. Pin the
+     settled state — same final design, always visible, no re-animate flicker. */
+  .animate-rise { animation: none !important; opacity: 1 !important; transform: none !important; }
+  /* select arrow hide */
+  select.appearance-none { -webkit-appearance:none; appearance:none; }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- ====== TOP BAR ====== -->
+  <header class="px-4 md:px-6 lg:px-8 pt-5 pb-3 max-w-[1600px] mx-auto">
+    <div class="flex items-center gap-3">
+      <a href="#/" class="flex items-center gap-2.5 pr-4">
+        <div class="relative size-8 rounded-full bg-ink grid place-items-center">
+          <i data-lucide="hexagon" class="size-4 text-ember" stroke-width="2"></i>
+          <span class="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-ember animate-breathe"></span>
+        </div>
+        <span class="font-display text-[22px] leading-none text-ink tracking-tight">Hermes<span class="text-ember">.</span></span>
+        <span data-version class="self-center ml-1 font-mono text-[9px] leading-none text-muted-foreground px-1.5 py-1 rounded-md border border-border bg-cream">v1.0</span>
+      </a>
+      <nav id="tabs-desktop" class="hidden md:flex items-center gap-1 pl-2"></nav>
+
+      <div class="ml-auto hidden md:flex items-center gap-3 px-4 h-10 rounded-full bg-cream border border-border min-w-[280px] text-muted-foreground">
+        <i data-lucide="search" class="size-4" stroke-width="1.75"></i>
+        <span class="font-sans text-[13px]">Search agents, missions, logs…</span>
+        <span class="ml-auto flex items-center gap-1 font-mono text-[10px]"><i data-lucide="command" class="size-3"></i> K</span>
+      </div>
+      <button class="hidden md:grid size-10 rounded-full bg-cream border border-border place-items-center hover:border-ink/40 transition-colors">
+        <i data-lucide="bell" class="size-4 text-ink" stroke-width="1.75"></i>
+      </button>
+      <div class="hidden md:flex flex-col items-end leading-tight pl-2">
+        <span class="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">UTC</span>
+        <span id="utc-clock" class="font-mono text-[12px] tabular-nums text-ink">--:--:--</span>
+      </div>
+
+      <div class="ml-auto md:hidden flex items-center gap-2">
+        <span id="utc-clock-m" class="font-mono text-[11px] tabular-nums text-ink px-2.5 py-1.5 rounded-full bg-cream border border-border">--:--:--</span>
+        <button id="menu-btn" aria-label="Open menu" class="size-10 rounded-full bg-ink text-cream grid place-items-center hover:bg-ember transition-colors">
+          <i id="menu-icon" data-lucide="menu" class="size-4"></i>
+        </button>
+      </div>
+    </div>
+
+    <div id="mobile-sheet" class="hidden md:hidden mt-3 rounded-3xl bg-ink text-cream p-3 animate-rise">
+      <nav id="tabs-mobile" class="flex flex-col gap-1.5"></nav>
+      <div class="mt-3 flex items-center gap-2 px-3 h-10 rounded-2xl bg-cream/5 border border-cream/10 text-cream/70">
+        <i data-lucide="search" class="size-3.5" stroke-width="1.75"></i>
+        <span class="font-sans text-[12px]">Search agents, missions, logs…</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ====================================================== -->
+  <!--   OVERVIEW                                              -->
+  <!-- ====================================================== -->
+  <main id="route-overview" class="route active px-4 md:px-6 lg:px-8 pb-10 pt-4 max-w-[1600px] mx-auto">
+    <div class="grid grid-cols-12 gap-4 md:gap-5">
+      <!-- HERO -->
+      <section class="col-span-12 lg:col-span-8 relative rounded-3xl bg-ink text-cream p-7 md:p-9 overflow-hidden min-h-[420px] animate-rise">
+        <div class="absolute -top-24 -right-24 size-[420px] rounded-full bg-ember/40 blur-3xl animate-float-orb"></div>
+        <div class="absolute -bottom-32 left-1/4 size-[360px] rounded-full bg-ember/15 blur-3xl animate-float-orb" style="animation-delay:-7s"></div>
+        <div class="absolute inset-0 opacity-[0.07] dotgrid text-cream pointer-events-none"></div>
+
+        <div class="relative flex items-start justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2 font-mono text-[10px] tracking-[0.25em] text-cream/60 uppercase">
+              <span class="size-1.5 rounded-full bg-ember status-pulse text-ember"></span>
+              Live · Orchestration Layer
+            </div>
+            <h1 class="font-display text-[44px] md:text-[64px] leading-[0.95] tracking-tight mt-3">
+              One orchestrator.<br>
+              <span class="italic text-ember">four specialists.</span>
+            </h1>
+            <p class="font-sans text-[13px] text-cream/65 mt-3 max-w-md">
+              Hermes is coordinating <span class="text-cream">Scout · Scribe · Reach · Dev</span> —
+              routing every task to <span class="text-cream" data-hero="hero-gateway">gpt-5.5 or MiniMax-M3</span> by complexity.
+            </p>
+          </div>
+          <div class="flex flex-col items-end gap-2">
+            <span class="px-3 py-1.5 rounded-full bg-ember text-cream font-mono text-[10px] tracking-wider" data-hero="hero-gw-state">● gateway</span>
+            <span class="px-3 py-1.5 rounded-full bg-cream/10 text-cream font-mono text-[10px] tracking-wider border border-cream/15" data-hero="hero-tel">telegram</span>
+          </div>
+        </div>
+
+        <div class="relative mt-6 h-[220px] md:h-[240px]">
+          <svg viewBox="0 0 800 240" class="absolute inset-0 w-full h-full" id="hero-orbit"></svg>
+        </div>
+      </section>
+
+      <!-- RECENT LOGS -->
+      <section class="col-span-12 lg:col-span-4 relative rounded-3xl bg-ember text-cream p-7 overflow-hidden min-h-[420px] flex flex-col justify-between animate-rise" style="animation-delay:60ms">
+        <div class="absolute -right-16 -bottom-16 size-[280px] rounded-full bg-cream/10 blur-2xl"></div>
+        <i data-lucide="zap" class="absolute right-4 bottom-4 size-44 text-cream/15 -rotate-12" stroke-width="1.2"></i>
+        <div class="relative">
+          <div class="flex items-center gap-2 font-mono text-[10px] tracking-[0.25em] uppercase opacity-80">
+            <i data-lucide="sparkles" class="size-3"></i> Recent · Activity
+          </div>
+          <div class="flex gap-1.5 mt-3 font-mono text-[9px] opacity-70 flex-wrap">
+            <span class="text-cream font-bold">LIVE</span><span>5m</span><span>1h</span><span>24h</span><span>7d</span>
+          </div>
+          <h2 class="font-display text-[40px] leading-[0.95] tracking-tight mt-4">Agents that<br><span class="italic">ship work.</span></h2>
+        </div>
+        <ul id="logs-list" class="relative space-y-2 mt-5"></ul>
+      </section>
+    </div>
+
+    <!-- SECOND ROW BENTO -->
+    <div class="grid grid-cols-12 gap-4 md:gap-5 mt-4 md:mt-5">
+      <!-- Big number -->
+      <section class="col-span-12 md:col-span-6 lg:col-span-3 rounded-3xl bg-surface border border-border p-6 flex flex-col gap-4 animate-rise" style="animation-delay:120ms">
+        <div class="flex items-center justify-between">
+          <span class="font-mono text-[10px] tracking-[0.2em] text-muted-foreground">— ACTIVE MISSIONS</span>
+          <span class="size-2 rounded-full bg-ember status-pulse text-ember"></span>
+        </div>
+        <div class="flex items-baseline gap-3 -ml-2">
+          <span class="font-display text-[120px] leading-[0.85] text-ink tabular-nums" data-hero="active-missions">0</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="font-sans text-[12px] text-muted-foreground">open on the board</span>
+          <span class="font-mono text-[11px] text-ember font-semibold" data-hero="active-done">—</span>
+        </div>
+        <div class="mt-auto rounded-2xl bg-ink text-cream p-4 flex items-center gap-3">
+          <i data-lucide="cpu" class="size-4 text-ember"></i>
+          <span class="font-mono text-[10px] tracking-widest" data-hero="vps-line">CPU — · RAM —</span>
+          <span class="ml-auto font-display text-[22px] italic text-ember">live</span>
+        </div>
+      </section>
+
+      <!-- Focus ring -->
+      <section class="col-span-12 md:col-span-6 lg:col-span-3 rounded-3xl bg-surface border border-border p-6 flex flex-col items-center text-center animate-rise" style="animation-delay:320ms">
+        <span class="font-mono text-[10px] tracking-[0.2em] text-muted-foreground self-start" data-hero="focus-label">— FOCUS</span>
+        <p class="font-sans text-[12px] text-muted-foreground mt-2 max-w-[200px]" data-hero="focus-desc">The agent carrying the largest share of the workload</p>
+        <div class="relative size-44 mt-3">
+          <svg viewBox="0 0 100 100" class="absolute inset-0 w-full h-full -rotate-90 animate-spin-slow" style="animation-duration:60s">
+            <circle cx="50" cy="50" r="42" fill="none" stroke="oklch(0.85 0.012 70)" stroke-width="4"/>
+            <circle cx="50" cy="50" r="42" fill="none" stroke="oklch(0.66 0.22 38)" stroke-width="4" stroke-linecap="round"
+              stroke-dasharray="163.78 263.89" data-hero="focus-arc"/>
+          </svg>
+          <div class="absolute inset-0 grid place-items-center">
+            <span class="font-display text-[64px] leading-none text-ink tabular-nums" data-hero="focus-pct">0</span>
+          </div>
+        </div>
+        <span class="font-mono text-[10px] tracking-widest text-muted-foreground mt-1">% OF TASKS</span>
+      </section>
+
+      <!-- Resolved dot grid -->
+      <section class="col-span-12 md:col-span-12 lg:col-span-6 rounded-3xl bg-surface border border-border p-6 flex flex-col animate-rise" style="animation-delay:200ms">
+        <div class="flex items-start justify-between">
+          <div>
+            <span class="font-mono text-[10px] tracking-[0.2em] text-muted-foreground">— TASKS RESOLVED · BY AGENT</span>
+            <p class="font-sans text-[13px] text-ink mt-1">All logged runs</p>
+          </div>
+          <button class="size-9 rounded-full bg-ink text-cream grid place-items-center hover:bg-ember transition-colors">
+            <i data-lucide="arrow-up-right" class="size-4"></i>
+          </button>
+        </div>
+        <div class="grid grid-cols-2 gap-6 mt-4 items-center">
+          <div>
+            <div class="flex items-baseline gap-2">
+          <span class="font-display text-[88px] leading-[0.85] text-ink tabular-nums" data-hero="resolved-total">0</span>
+              <span class="font-mono text-[14px] text-muted-foreground" data-hero="resolved-ok">—</span>
+            </div>
+            <span class="font-mono text-[10px] text-muted-foreground tracking-wider">completed / total</span>
+            <div id="resolved-chips" class="flex items-center gap-2 mt-4 flex-wrap"></div>
+          </div>
+          <div id="resolved-dots" class="grid grid-cols-7 gap-2 ml-auto"></div>
+        </div>
+      </section>
+
+      <!-- Fleet -->
+      <section class="col-span-12 lg:col-span-7 rounded-3xl bg-surface border border-border p-6 animate-rise" style="animation-delay:240ms">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <span class="font-mono text-[10px] tracking-[0.2em] text-muted-foreground">— FLEET · ORCHESTRATOR + 4</span>
+            <p class="font-sans text-[13px] text-ink mt-1">Per-agent state & throughput</p>
+          </div>
+          <button class="size-9 rounded-full bg-ink text-cream grid place-items-center hover:bg-ember transition-colors">
+            <i data-lucide="arrow-up-right" class="size-4"></i>
+          </button>
+        </div>
+        <ul id="fleet-list" class="space-y-2"></ul>
+      </section>
+
+      <!-- Create tile -->
+      <section class="col-span-12 md:col-span-6 lg:col-span-5 relative rounded-3xl bg-ink text-cream p-6 overflow-hidden flex flex-col justify-between min-h-[200px] animate-rise" style="animation-delay:400ms">
+        <div class="flex items-start justify-between">
+          <span class="font-mono text-[10px] tracking-[0.2em] opacity-70">— BUILD</span>
+          <button class="size-9 rounded-full bg-ember grid place-items-center hover:rotate-90 transition-transform">
+            <i data-lucide="plus" class="size-4 text-cream"></i>
+          </button>
+        </div>
+        <div>
+          <h4 class="font-display text-[22px] leading-tight">Spin up<br><span class="italic text-ember">a new agent</span></h4>
+          <p class="font-mono text-[9px] mt-1 opacity-60 tracking-wider">/ click + above</p>
+        </div>
+      </section>
+
+      <!-- Cost Ledger -->
+      <section class="col-span-12 md:col-span-6 lg:col-span-8 rounded-3xl bg-surface border border-border p-6 flex flex-col justify-between animate-rise" style="animation-delay:440ms">
+        <div class="flex items-start justify-between">
+          <div>
+            <span class="font-mono text-[10px] tracking-[0.2em] text-muted-foreground">— INFERENCE LEDGER · MODEL ROUTING</span>
+            <p class="font-sans text-[13px] text-ink mt-1">Tasks routed by complexity · real runs</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="px-3 py-1.5 rounded-full bg-ink text-cream font-mono text-[10px] tracking-wider" data-hero="routing-models">— models</span>
+            <button class="size-9 rounded-full bg-ink text-cream grid place-items-center hover:bg-ember transition-colors">
+              <i data-lucide="git-branch" class="size-4"></i>
+            </button>
+          </div>
+        </div>
+        <div class="grid grid-cols-12 gap-6 mt-4">
+          <div class="col-span-12 md:col-span-5 flex flex-col gap-3">
+            <div class="flex items-baseline gap-2">
+              <span class="font-display text-[64px] leading-[0.85] text-ink tabular-nums tracking-tight" data-hero="tokens-total">0</span>
+              <span class="font-mono text-[13px] text-muted-foreground">tokens</span>
+            </div>
+            <span class="font-mono text-[10px] text-muted-foreground tracking-wider" data-hero="routing-since">across all logged runs</span>
+            <div class="mt-2">
+              <div class="flex items-center justify-between font-mono text-[9px] uppercase tracking-wider text-muted-foreground mb-1.5">
+                <span>Offloaded to fast model</span><span class="text-ink" data-hero="offload-pct">0%</span>
+              </div>
+              <div class="h-2.5 rounded-full bg-secondary overflow-hidden">
+                <div class="h-full rounded-full bg-ember" style="width:0%" data-hero="offload-bar"></div>
+              </div>
+            </div>
+            <div class="mt-1 rounded-2xl bg-ink text-cream p-3 flex items-center gap-3">
+              <div class="flex flex-col leading-tight">
+                <span class="font-mono text-[9px] opacity-60 tracking-wider uppercase">Complexity routing</span>
+                <span class="font-display text-[15px] italic text-ember" data-hero="routing-split">— → gpt-5.5 · — → MiniMax-M3</span>
+              </div>
+            </div>
+          </div>
+          <div class="col-span-12 md:col-span-7 flex flex-col gap-2">
+            <div class="flex items-center justify-between font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
+              <span>Model</span><span>Tasks / share</span>
+            </div>
+            <ul id="cost-models" class="space-y-1.5"></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Promo -->
+      <section class="col-span-12 md:col-span-6 lg:col-span-4 relative rounded-3xl bg-ember text-cream p-7 overflow-hidden flex flex-col justify-between min-h-[300px] animate-rise" style="animation-delay:280ms">
+        <i data-lucide="zap" class="absolute -right-8 -bottom-8 size-64 text-cream/15 rotate-12" stroke-width="1"></i>
+        <div class="absolute inset-0 opacity-[0.08] dotgrid text-cream pointer-events-none"></div>
+        <div class="relative">
+          <span class="font-mono text-[10px] tracking-[0.25em] uppercase opacity-80">— Hermes / V4</span>
+          <h3 class="font-display text-[40px] leading-[0.95] tracking-tight mt-3">It will change<br>the way you<br><span class="italic">orchestrate.</span></h3>
+        </div>
+        <p class="relative font-mono text-[11px] tracking-wider opacity-80">just start running / agents</p>
+      </section>
+    </div>
+
+    <!-- Ticker -->
+    <section class="relative mt-5 rounded-full bg-ink text-cream py-3 overflow-hidden border border-ink">
+      <div class="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-ink to-transparent z-10"></div>
+      <div class="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-ink to-transparent z-10"></div>
+      <div id="ticker" class="flex gap-10 animate-marquee whitespace-nowrap"></div>
+    </section>
+
+    <footer class="flex items-center justify-between mt-6 pt-4 border-t border-border font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+      <span class="flex items-center gap-2"><i data-lucide="layers" class="size-3"></i> Hermes Core · v4.2.1</span>
+      <span class="text-ember">Channel · Secure</span>
+      <span class="flex items-center gap-2">Operator 01 · Tier IV <i data-lucide="settings-2" class="size-3"></i></span>
+    </footer>
+  </main>
+
+  <!-- ====================================================== -->
+  <!--   AGENTS                                                -->
+  <!-- ====================================================== -->
+  <main id="route-agents" class="route px-4 md:px-6 lg:px-8 pb-10 pt-4 max-w-[1600px] mx-auto">
+    <div class="relative rounded-3xl bg-ink text-cream px-7 md:px-9 py-7 md:py-8 overflow-hidden animate-rise">
+      <div class="absolute -top-24 -right-24 size-[380px] rounded-full bg-ember/40 blur-3xl animate-float-orb"></div>
+      <div class="absolute inset-0 opacity-[0.07] dotgrid text-cream pointer-events-none"></div>
+      <div class="relative flex flex-col md:flex-row md:items-end md:justify-between gap-5">
+        <div>
+          <div class="flex items-center gap-2 font-mono text-[10px] tracking-[0.25em] uppercase text-cream/60">
+            <i data-lucide="hexagon" class="size-3 text-ember"></i> Fleet · Configuration
+          </div>
+          <h1 class="font-display text-[44px] md:text-[60px] leading-[0.95] tracking-tight mt-3">Five agents.<br><span class="italic text-ember">one console.</span></h1>
+          <p class="font-sans text-[13px] text-cream/65 mt-3 max-w-lg">Inspect each specialist, route them to the right model, and watch the heatbeat of the entire fleet in one place.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="flex items-center gap-2 px-3 py-2 rounded-full bg-cream/10 text-cream border border-cream/20 backdrop-blur-sm">
+            <i data-lucide="activity" class="size-3 opacity-80"></i>
+            <span class="font-display text-[18px] italic leading-none" data-hero="ag-tasks">0</span>
+            <span class="font-mono text-[9px] uppercase tracking-wider opacity-80">tasks logged</span>
+          </div>
+          <div class="flex items-center gap-2 px-3 py-2 rounded-full bg-cream/10 text-cream border border-cream/20 backdrop-blur-sm">
+            <i data-lucide="sparkles" class="size-3 opacity-80"></i>
+            <span class="font-display text-[18px] italic leading-none" data-hero="ag-success">—</span>
+            <span class="font-mono text-[9px] uppercase tracking-wider opacity-80">avg success</span>
+          </div>
+          <div class="flex items-center gap-2 px-3 py-2 rounded-full bg-ember text-cream">
+            <i data-lucide="git-branch" class="size-3 opacity-80"></i>
+            <span class="font-display text-[18px] italic leading-none" data-hero="ag-offload">0%</span>
+            <span class="font-mono text-[9px] uppercase tracking-wider opacity-80">routed to fast</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <section id="agent-cards" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 md:gap-5 mt-5"></section>
+
+    <section class="grid grid-cols-12 gap-4 md:gap-5 mt-5">
+      <!-- task summary -->
+      <section class="col-span-12 lg:col-span-5 rounded-3xl bg-surface border border-border p-6 animate-rise">
+        <div class="flex items-start justify-between">
+          <div>
+            <span class="font-mono text-[10px] tracking-[0.2em] text-muted-foreground">— TASK SUMMARY · 24H</span>
+            <p class="font-sans text-[13px] text-ink mt-1">Throughput across the specialist fleet</p>
+          </div>
+          <button class="size-9 rounded-full bg-ink text-cream grid place-items-center hover:bg-ember transition-colors">
+            <i data-lucide="arrow-up-right" class="size-4"></i>
+          </button>
+        </div>
+        <div class="grid grid-cols-2 gap-4 mt-5">
+          <div class="rounded-2xl bg-ink text-cream p-5 relative overflow-hidden">
+            <i data-lucide="zap" class="absolute -right-4 -bottom-4 size-28 text-cream/10" stroke-width="1"></i>
+            <span class="font-mono text-[9px] tracking-widest opacity-70 uppercase">Total tasks</span>
+            <div id="summary-total" class="font-display text-[56px] leading-[0.85] tabular-nums mt-2">802</div>
+            <span class="font-mono text-[10px] text-ember mt-1 block">↗ +12% vs yesterday</span>
+          </div>
+          <div class="rounded-2xl bg-cream border border-border p-5">
+            <span class="font-mono text-[9px] tracking-widest text-muted-foreground uppercase">Avg success</span>
+            <div id="summary-success" class="font-display text-[56px] leading-[0.85] text-ink tabular-nums mt-2">98.9<span class="text-[28px] text-muted-foreground">%</span></div>
+            <span class="font-mono text-[10px] text-muted-foreground mt-1 block">5-agent rolling avg</span>
+          </div>
+        </div>
+        <ul id="summary-bars" class="mt-5 space-y-2"></ul>
+      </section>
+
+      <!-- model switcher -->
+      <section class="col-span-12 lg:col-span-7 relative rounded-3xl bg-ember text-cream p-6 overflow-hidden animate-rise">
+        <div class="absolute -right-16 -top-16 size-[260px] rounded-full bg-cream/10 blur-2xl"></div>
+        <i data-lucide="cpu" class="absolute right-4 bottom-4 size-40 text-cream/10 -rotate-12" stroke-width="1"></i>
+        <div class="relative flex items-start justify-between">
+          <div>
+            <span class="font-mono text-[10px] tracking-[0.25em] uppercase opacity-80">— MODEL ROUTING</span>
+            <h2 class="font-display text-[36px] leading-[0.95] tracking-tight mt-2">Route each agent<br><span class="italic">to its best brain.</span></h2>
+          </div>
+          <span id="model-counter" class="px-3 py-1.5 rounded-full bg-cream/15 border border-cream/20 font-mono text-[10px] tracking-wider backdrop-blur-sm">5 agents · 7 models</span>
+        </div>
+        <div id="model-rows" class="relative mt-5 space-y-2"></div>
+        <p class="relative font-mono text-[10px] tracking-wider opacity-80 mt-4">/ changes apply on next task dispatch</p>
+      </section>
+    </section>
+
+    <section class="grid grid-cols-12 gap-4 md:gap-5 mt-5">
+      <!-- heatmap -->
+      <section class="col-span-12 lg:col-span-8 rounded-3xl bg-surface border border-border p-6 animate-rise">
+        <div class="flex items-start justify-between">
+          <div>
+            <span class="font-mono text-[10px] tracking-[0.2em] text-muted-foreground">— ACTIVITY HEATMAP · 7d × 24h</span>
+            <p class="font-sans text-[13px] text-ink mt-1">When the fleet is busiest, UTC</p>
+          </div>
+          <div class="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-widest text-muted-foreground">
+            <span>cool</span>
+            <span id="heat-legend" class="flex gap-0.5"></span>
+            <span class="text-ember">hot</span>
+          </div>
+        </div>
+        <div class="mt-5 overflow-x-auto">
+          <div id="heatmap" class="min-w-[640px]"></div>
+        </div>
+        <div class="mt-5 pt-4 border-t border-border grid grid-cols-3 gap-4">
+          <div><div class="font-mono text-[9px] uppercase tracking-widest text-muted-foreground">Peak hour</div><div class="font-display text-[22px] mt-0.5 text-ink">14:00 UTC</div></div>
+          <div><div class="font-mono text-[9px] uppercase tracking-widest text-muted-foreground">Quietest</div><div class="font-display text-[22px] mt-0.5 text-ink">03:00 UTC</div></div>
+          <div><div class="font-mono text-[9px] uppercase tracking-widest text-muted-foreground">Weekday avg</div><div class="font-display text-[22px] mt-0.5 italic text-ember">74%</div></div>
+        </div>
+      </section>
+
+      <!-- pie -->
+      <section class="col-span-12 lg:col-span-4 rounded-3xl bg-ink text-cream p-6 relative overflow-hidden animate-rise">
+        <div class="absolute -right-16 -bottom-16 size-[260px] rounded-full bg-ember/30 blur-3xl animate-float-orb"></div>
+        <div class="absolute inset-0 opacity-[0.06] dotgrid text-cream pointer-events-none"></div>
+        <div class="relative">
+          <span class="font-mono text-[10px] tracking-[0.2em] uppercase opacity-70">— TASK DISTRIBUTION</span>
+          <p class="font-sans text-[13px] mt-1 opacity-80">Share of total cycles</p>
+        </div>
+        <div class="relative flex justify-center my-4">
+          <svg viewBox="0 0 220 220" class="size-52" id="pie"></svg>
+        </div>
+        <ul id="pie-legend" class="relative space-y-1.5"></ul>
+      </section>
+    </section>
+
+    <!-- AGENT LOGS · recent -->
+    <section class="mt-4 md:mt-5 rounded-3xl bg-surface border border-border p-6 animate-rise">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <span class="font-mono text-[10px] tracking-[0.2em] text-muted-foreground">— AGENT LOGS · RECENT</span>
+          <p class="font-sans text-[13px] text-ink mt-1">Every logged run across the fleet</p>
+        </div>
+        <span id="agent-logs-count" class="font-mono text-[11px] tabular-nums px-2.5 py-1 rounded-full bg-ink text-cream">0</span>
+      </div>
+      <div class="overflow-x-auto">
+        <div class="min-w-[600px]">
+          <div class="grid grid-cols-[76px_84px_1fr_130px_70px] gap-3 px-2 pb-2 font-mono text-[9px] uppercase tracking-widest text-muted-foreground border-b border-border">
+            <span>Time</span><span>Agent</span><span>Task</span><span>Model</span><span class="text-right">Status</span>
+          </div>
+          <ul id="agent-logs-list" class="mt-1"></ul>
+        </div>
+      </div>
+    </section>
+
+    <footer class="flex items-center justify-between mt-8 pt-4 border-t border-border font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+      <span class="flex items-center gap-2"><i data-lucide="layers" class="size-3"></i> Hermes Core · v4.2.1</span>
+      <span class="text-ember">Channel · Secure</span>
+      <span class="flex items-center gap-2">Operator 01 · Tier IV <i data-lucide="settings-2" class="size-3"></i></span>
+    </footer>
+  </main>
+
+  <!-- ====================================================== -->
+  <!--   TASKS                                                 -->
+  <!-- ====================================================== -->
+  <main id="route-tasks" class="route">
+    <section class="px-4 md:px-6 lg:px-8 max-w-[1600px] mx-auto pt-2 pb-6">
+      <div class="relative overflow-hidden rounded-[28px] bg-ink text-cream p-6 md:p-8 animate-rise">
+        <div class="pointer-events-none absolute -top-24 -left-16 size-72 rounded-full bg-ember/30 blur-3xl animate-float-orb"></div>
+        <div class="pointer-events-none absolute -bottom-32 right-10 size-80 rounded-full bg-ember-soft/20 blur-3xl animate-float-orb" style="animation-delay:-6s"></div>
+        <div class="pointer-events-none absolute inset-0 dotgrid text-cream/10"></div>
+        <div class="relative flex flex-col lg:flex-row lg:items-end gap-6 justify-between">
+          <div class="max-w-3xl">
+            <div class="flex items-center gap-2 font-mono text-[10px] tracking-[0.22em] uppercase text-cream/60">
+              <i data-lucide="hexagon" class="size-3 text-ember"></i> Mission Board · <span id="task-count">10</span> active
+            </div>
+            <h1 class="font-display text-[44px] md:text-[64px] leading-[0.95] mt-3 tracking-tight">Every mission, <span class="italic text-ember">in motion.</span></h1>
+            <p class="font-sans text-cream/70 mt-3 max-w-xl text-[14px]">Drag a card between columns to move it through your workflow. This is your personal task board — capture what you're working on, set priorities, and track it to done.</p>
+          </div>
+          <div class="flex gap-3">
+            <div class="rounded-2xl bg-cream/5 border border-cream/10 px-4 py-3 backdrop-blur-sm animate-rise">
+              <div class="font-mono text-[9px] uppercase tracking-[0.2em] text-cream/50">To do</div>
+              <div class="font-display text-[34px] leading-none mt-1 tabular-nums" id="count-todo">4</div>
+            </div>
+            <div class="rounded-2xl bg-cream/5 border border-cream/10 px-4 py-3 backdrop-blur-sm animate-rise">
+              <div class="font-mono text-[9px] uppercase tracking-[0.2em] text-cream/50">In progress</div>
+              <div class="font-display text-[34px] leading-none mt-1 tabular-nums" id="count-doing">3</div>
+            </div>
+            <div class="rounded-2xl bg-cream/5 border border-cream/10 px-4 py-3 backdrop-blur-sm animate-rise">
+              <div class="font-mono text-[9px] uppercase tracking-[0.2em] text-cream/50">Done</div>
+              <div class="font-display text-[34px] leading-none mt-1 tabular-nums" id="count-done">3</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="relative mt-6 flex flex-col md:flex-row md:items-center gap-3">
+          <div class="flex items-center gap-2 px-3.5 h-10 rounded-full bg-cream/8 border border-cream/15 flex-1 max-w-md">
+            <i data-lucide="search" class="size-4 text-cream/60" stroke-width="1.75"></i>
+            <input id="task-search" placeholder="Search tasks, IDs…" class="bg-transparent outline-none font-sans text-[13px] flex-1 placeholder:text-cream/40 text-cream"/>
+          </div>
+          <div id="priority-filter" class="flex items-center gap-1.5 p-1 rounded-full bg-cream/8 border border-cream/15"></div>
+          <button id="new-mission-btn" class="ml-auto inline-flex items-center gap-2 px-4 h-10 rounded-full bg-ember text-cream font-mono text-[11px] tracking-wider uppercase hover:brightness-110 transition">
+            <i data-lucide="plus" class="size-3.5"></i> New mission
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="px-4 md:px-6 lg:px-8 max-w-[1600px] mx-auto pb-12">
+      <div id="new-mission-form" class="hidden mb-5 rounded-3xl bg-surface border border-border p-4">
+        <div class="flex flex-col md:flex-row gap-3 md:items-center">
+          <input id="nm-title" placeholder="Mission title…" class="flex-1 px-4 h-11 rounded-2xl bg-cream border border-border outline-none font-sans text-[14px] text-ink placeholder:text-muted-foreground focus:border-ink/40"/>
+          <select id="nm-priority" class="px-4 h-11 rounded-2xl bg-cream border border-border font-mono text-[12px] text-ink outline-none focus:border-ink/40">
+            <option value="P1">P1 · Critical</option><option value="P2" selected>P2 · High</option><option value="P3">P3 · Normal</option>
+          </select>
+          <select id="nm-col" class="px-4 h-11 rounded-2xl bg-cream border border-border font-mono text-[12px] text-ink outline-none focus:border-ink/40">
+            <option value="todo" selected>To do</option><option value="doing">In progress</option><option value="done">Done</option>
+          </select>
+          <button id="nm-create" class="px-5 h-11 rounded-2xl bg-ember text-cream font-mono text-[11px] tracking-wider uppercase hover:brightness-110 transition">Create</button>
+          <button id="nm-cancel" class="px-4 h-11 rounded-2xl bg-cream border border-border text-muted-foreground font-mono text-[11px] tracking-wider uppercase hover:text-ink transition">Cancel</button>
+        </div>
+      </div>
+      <div id="kanban" class="grid grid-cols-1 lg:grid-cols-3 gap-5"></div>
+    </section>
+  </main>
+
+  <!-- ====================================================== -->
+  <!--   OFFICE                                                -->
+  <!-- ====================================================== -->
+  <main id="route-office" class="route">
+    <section class="px-4 md:px-6 lg:px-8 max-w-[1600px] mx-auto pt-2 pb-6">
+      <div class="relative overflow-hidden rounded-[28px] bg-ink text-cream animate-rise">
+        <div class="relative z-10 p-6 md:p-8 flex flex-col lg:flex-row lg:items-end gap-6 justify-between">
+          <div class="max-w-2xl">
+            <div class="flex items-center gap-2 font-mono text-[10px] tracking-[0.22em] uppercase text-cream/60">
+              <i data-lucide="hexagon" class="size-3 text-ember"></i> The Empire · Live skyline
+            </div>
+            <h1 class="font-display text-[44px] md:text-[64px] leading-[0.95] mt-3 tracking-tight">A city built by <span class="italic text-ember">agents.</span></h1>
+            <p class="font-sans text-cream/70 mt-3 max-w-xl text-[14px]">Every specialist owns a tower. The orchestrator runs HQ at the center. Lit windows mean live work. Drag to orbit, scroll to zoom, click a building to open its dossier.</p>
+          </div>
+          <div class="flex gap-3">
+            <div class="rounded-2xl bg-cream/5 border border-cream/10 px-4 py-3 backdrop-blur-sm animate-rise"><div class="font-mono text-[9px] uppercase tracking-[0.2em] text-cream/50">Buildings</div><div class="font-display text-[34px] leading-none mt-1 tabular-nums">5</div></div>
+            <div class="rounded-2xl bg-cream/5 border border-cream/10 px-4 py-3 backdrop-blur-sm animate-rise"><div class="font-mono text-[9px] uppercase tracking-[0.2em] text-cream/50">Lights on</div><div class="font-display text-[34px] leading-none mt-1 tabular-nums" data-hero="office-lights">0</div></div>
+            <div class="rounded-2xl bg-cream/5 border border-cream/10 px-4 py-3 backdrop-blur-sm animate-rise"><div class="font-mono text-[9px] uppercase tracking-[0.2em] text-cream/50">Tasks</div><div class="font-display text-[34px] leading-none mt-1 tabular-nums" data-hero="office-tasks">0</div></div>
+          </div>
+        </div>
+
+        <div class="relative h-[480px] sm:h-[560px] md:h-[640px] lg:h-[720px] w-full">
+          <div class="pointer-events-none absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-ink to-transparent z-10"></div>
+          <div class="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-ink to-transparent z-10"></div>
+          <div class="absolute top-4 right-4 z-20 hidden md:flex items-center gap-2 px-3 h-9 rounded-full bg-cream/8 border border-cream/15 backdrop-blur-sm">
+            <i data-lucide="mouse" class="size-3.5 text-cream/70"></i>
+            <span class="font-mono text-[10px] tracking-wider uppercase text-cream/70">Drag · Scroll · Click</span>
+          </div>
+          <div id="empire-canvas-wrap" class="absolute inset-0"></div>
+          <div id="empire-loading" class="absolute inset-0 grid place-items-center">
+            <div class="flex flex-col items-center gap-3 text-cream/70">
+              <div class="relative size-12 grid place-items-center">
+                <span class="absolute inset-0 rounded-full border border-ember/40 animate-ping"></span>
+                <i data-lucide="building-2" class="size-6 text-ember animate-breathe"></i>
+              </div>
+              <span class="font-mono text-[10px] tracking-[0.22em] uppercase">Booting the empire…</span>
+              <span class="font-mono text-[9px] tracking-wider text-cream/40 max-w-[280px] text-center">First visit compiles the 3D engine (≈10s). If this lingers, hard-reload the page.</span>
+            </div>
+          </div>
+          <div id="dossier-mount"></div>
+        </div>
+
+        <div id="empire-legend" class="relative z-10 px-6 md:px-8 py-5 border-t border-cream/10 grid grid-cols-2 md:grid-cols-5 gap-4"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ====================================================== -->
+  <!--   CONTENT                                               -->
+  <!-- ====================================================== -->
+  <main id="route-content" class="route px-4 md:px-6 lg:px-8 pb-12 pt-4 max-w-[1600px] mx-auto">
+    <div class="flex flex-wrap items-end justify-between gap-4 mb-5">
+      <div>
+        <span class="font-mono text-[10px] tracking-[0.2em] text-muted-foreground">— AGENT OUTPUT</span>
+        <h1 class="font-display leading-[0.95] tracking-tight mt-2" style="font-size:clamp(36px,5vw,60px);font-weight:500">Library.</h1>
+      </div>
+      <button id="new-doc-btn" class="inline-flex items-center gap-2 px-4 h-11 rounded-2xl bg-surface border-l-2 border-ember text-ink font-mono text-[11px] tracking-wider uppercase hover:border-l-4 hover:bg-cream transition">
+        <i data-lucide="plus" class="size-3.5"></i> New Doc
+      </button>
+    </div>
+
+    <!-- STATS STRIP -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+      <div class="rounded-3xl bg-surface border border-border border-t-2 border-t-ember p-5">
+        <div class="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Total Docs</div>
+        <div class="font-display tabular-nums mt-1" style="font-size:clamp(24px,2.4vw,34px);font-weight:500" id="content-total">0</div>
+      </div>
+      <div class="rounded-3xl bg-surface border border-border border-t-2 border-t-ink p-5">
+        <div class="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Agents Writing</div>
+        <div class="font-display tabular-nums mt-1" style="font-size:clamp(24px,2.4vw,34px);font-weight:500" id="content-agents">0</div>
+      </div>
+      <div class="rounded-3xl bg-surface border border-border border-t-2 border-t-ember p-5">
+        <div class="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Latest</div>
+        <div class="font-sans text-[15px] text-ink truncate mt-1" id="content-latest">—</div>
+        <div class="font-mono text-[10px] text-muted-foreground mt-0.5" id="content-latest-meta"></div>
+      </div>
+    </div>
+
+    <!-- NEW DOC FORM -->
+    <div id="new-doc-form" class="hidden mb-5 rounded-3xl bg-surface border border-border p-5">
+      <div class="grid md:grid-cols-2 gap-3">
+        <select id="nd-agent" class="px-4 h-11 rounded-2xl bg-cream border border-border font-mono text-[12px] text-ink outline-none focus:border-ink/40">
+          <option value="orchestrator">Orchestrator</option><option value="scout">Scout</option>
+          <option value="scribe" selected>Scribe</option><option value="reach">Reach</option><option value="dev">Dev</option>
+        </select>
+        <input id="nd-title" placeholder="Document title…" class="px-4 h-11 rounded-2xl bg-cream border border-border outline-none font-sans text-[14px] text-ink placeholder:text-muted-foreground focus:border-ink/40"/>
+      </div>
+      <textarea id="nd-body" rows="10" class="w-full mt-3 px-4 py-3 rounded-2xl bg-cream border border-border outline-none font-mono text-[13px] text-ink placeholder:text-muted-foreground focus:border-ink/40 resize-y" placeholder="# Title&#10;&#10;"></textarea>
+      <div class="flex items-center gap-3 mt-3">
+        <button id="nd-create" class="px-5 h-11 rounded-2xl bg-ember text-cream font-mono text-[11px] tracking-wider uppercase hover:brightness-110 transition">Create</button>
+        <button id="nd-cancel" class="px-4 h-11 rounded-2xl bg-cream border border-border text-muted-foreground font-mono text-[11px] tracking-wider uppercase hover:text-ink transition">Cancel</button>
+      </div>
+    </div>
+
+    <!-- SPLIT LAYOUT -->
+    <div class="grid gap-[18px]" style="grid-template-columns:300px 1fr">
+      <div class="min-w-0">
+        <div id="content-filter" class="flex flex-wrap gap-1.5 mb-3"></div>
+        <ul id="content-list" class="space-y-1.5"></ul>
+      </div>
+      <div id="content-reader" class="rounded-3xl bg-surface border border-border p-6 min-h-[400px]">
+        <div class="grid place-items-center h-full min-h-[360px]"><span class="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">Select a document to read</span></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ====================================================== -->
+  <!--   SCHEDULE                                              -->
+  <!-- ====================================================== -->
+  <main id="route-schedule" class="route px-4 md:px-6 lg:px-8 pb-12 pt-4 max-w-[1600px] mx-auto">
+    <div class="flex flex-wrap items-end justify-between gap-4 mb-5">
+      <div>
+        <span class="font-mono text-[10px] tracking-[0.2em] text-muted-foreground">— AUTOMATION</span>
+        <h1 class="font-display leading-[0.95] tracking-tight mt-2" style="font-size:clamp(36px,5vw,60px);font-weight:500">Schedule.</h1>
+      </div>
+      <button id="sched-refresh" class="inline-flex items-center gap-2 px-4 h-11 rounded-2xl bg-surface border border-border text-ink font-mono text-[11px] tracking-wider uppercase hover:border-ink/40 transition">
+        <i data-lucide="refresh-cw" class="size-3.5"></i> Refresh
+      </button>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div class="rounded-3xl bg-surface border border-border border-t-2 border-t-ember p-5">
+        <div class="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Hermes Jobs</div>
+        <div class="font-display tabular-nums mt-1" style="font-size:clamp(24px,2.4vw,34px);font-weight:500" id="sched-total">0</div>
+      </div>
+      <div class="rounded-3xl bg-surface border border-border border-t-2 border-t-ink p-5">
+        <div class="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Active</div>
+        <div class="font-display tabular-nums mt-1" style="font-size:clamp(24px,2.4vw,34px);font-weight:500" id="sched-active">0</div>
+      </div>
+      <div class="rounded-3xl bg-surface border border-border border-t-2 border-t-ember p-5">
+        <div class="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Next Run</div>
+        <div class="font-sans text-[15px] text-ink truncate mt-1" id="sched-next">—</div>
+        <div class="font-mono text-[10px] text-muted-foreground mt-0.5" id="sched-next-name"></div>
+      </div>
+    </div>
+
+    <!-- Hermes scheduled jobs -->
+    <section class="rounded-3xl bg-surface border border-border p-5 mb-5">
+      <div class="flex items-center justify-between mb-4">
+        <div><span class="font-mono text-[10px] tracking-[0.2em] text-muted-foreground">— HERMES JOBS</span>
+          <p class="font-sans text-[13px] text-ink mt-1">Agent-driven scheduled tasks · run, pause, resume or delete</p></div>
+      </div>
+      <div id="sched-hermes" class="space-y-2.5"></div>
+    </section>
+  </main>
+
+  <!-- ====================================================== -->
+  <!--   CHAT                                                  -->
+  <!-- ====================================================== -->
+  <main id="route-chat" class="route px-4 md:px-6 lg:px-8 pb-8 pt-4 max-w-[1600px] mx-auto">
+    <div class="mb-4">
+      <span class="font-mono text-[10px] tracking-[0.2em] text-muted-foreground">— DIRECT LINE</span>
+      <h1 class="font-display leading-[0.95] tracking-tight mt-2" style="font-size:clamp(30px,4vw,48px);font-weight:500">Talk to the fleet.</h1>
+    </div>
+    <div class="grid gap-4 rounded-3xl bg-surface border border-border overflow-hidden" style="grid-template-columns:260px 1fr;height:70vh;min-height:520px">
+      <!-- sidebar -->
+      <div class="border-r border-border bg-cream/40 overflow-y-auto p-2.5" id="chat-roster"></div>
+      <!-- conversation -->
+      <div class="flex flex-col min-w-0 min-h-0">
+        <div class="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-border" id="chat-header">
+          <div class="flex items-center gap-3 min-w-0" id="chat-header-agent"></div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span id="chat-live" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cream border border-border font-mono text-[10px] uppercase tracking-wider text-muted-foreground"><span class="size-2 rounded-full bg-[#c9bfa8]"></span>idle</span>
+            <button id="chat-clear" title="Clear conversation" class="size-8 rounded-full bg-cream border border-border grid place-items-center hover:border-ink/40 transition"><i data-lucide="eraser" class="size-3.5"></i></button>
+          </div>
+        </div>
+        <div id="chat-messages" class="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-3"></div>
+        <div class="border-t border-border p-3">
+          <div class="flex items-end gap-2">
+            <textarea id="chat-input" rows="1" placeholder="Message the agent…  (Enter to send · Shift+Enter for newline)" class="flex-1 resize-none px-4 py-3 rounded-2xl bg-cream border border-border outline-none font-sans text-[14px] text-ink placeholder:text-muted-foreground focus:border-ink/40 max-h-[140px]"></textarea>
+            <button id="chat-send" class="size-11 shrink-0 rounded-2xl bg-ember text-cream grid place-items-center hover:brightness-110 transition disabled:opacity-40"><i data-lucide="arrow-up" class="size-5"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <main id="route-docs" class="route px-4 md:px-6 lg:px-8 pb-12 pt-4 max-w-[1600px] mx-auto">
+    <!-- HERO -->
+    <div class="relative overflow-hidden rounded-3xl bg-ink text-cream p-6 md:p-8 animate-rise mb-6">
+      <div class="absolute -top-24 -right-24 size-[380px] rounded-full bg-ember/40 blur-3xl animate-float-orb"></div>
+      <div class="absolute inset-0 opacity-[0.07] dotgrid text-cream pointer-events-none"></div>
+      <div class="relative max-w-3xl">
+        <div class="flex items-center gap-2 font-mono text-[10px] tracking-[0.25em] uppercase text-cream/60">
+          <i data-lucide="book-open" class="size-3 text-ember"></i> Documentation · How this dashboard works
+        </div>
+        <h1 class="font-display text-[40px] md:text-[56px] leading-[0.95] tracking-tight mt-3">Know every corner.</h1>
+        <p class="font-sans text-cream/70 mt-4 text-[15px] leading-relaxed">A plain-language guide to every tab, panel, and number on your Hermes Mission Control dashboard — what it shows, where the data comes from, and how to use it. Nothing here is invented: every figure traces back to your real Hermes activity or to your own local files.</p>
+      </div>
+    </div>
+
+    <!-- QUICK LINKS -->
+    <div class="flex flex-wrap gap-2 mb-6">
+      <button data-docjump="docs-overview" class="px-3.5 h-9 rounded-full bg-surface border border-border font-mono text-[10px] uppercase tracking-wider text-ink hover:border-ink/40 transition">Overview</button>
+      <button data-docjump="docs-agents"   class="px-3.5 h-9 rounded-full bg-surface border border-border font-mono text-[10px] uppercase tracking-wider text-ink hover:border-ink/40 transition">Agents</button>
+      <button data-docjump="docs-chat"     class="px-3.5 h-9 rounded-full bg-surface border border-border font-mono text-[10px] uppercase tracking-wider text-ink hover:border-ink/40 transition">Chat</button>
+      <button data-docjump="docs-tasks"    class="px-3.5 h-9 rounded-full bg-surface border border-border font-mono text-[10px] uppercase tracking-wider text-ink hover:border-ink/40 transition">Tasks</button>
+      <button data-docjump="docs-office"   class="px-3.5 h-9 rounded-full bg-surface border border-border font-mono text-[10px] uppercase tracking-wider text-ink hover:border-ink/40 transition">Office</button>
+      <button data-docjump="docs-content"  class="px-3.5 h-9 rounded-full bg-surface border border-border font-mono text-[10px] uppercase tracking-wider text-ink hover:border-ink/40 transition">Content</button>
+      <button data-docjump="docs-schedule" class="px-3.5 h-9 rounded-full bg-surface border border-border font-mono text-[10px] uppercase tracking-wider text-ink hover:border-ink/40 transition">Schedule</button>
+      <button data-docjump="docs-data"     class="px-3.5 h-9 rounded-full bg-ink text-cream border border-ink font-mono text-[10px] uppercase tracking-wider hover:opacity-90 transition">Data &amp; safety</button>
+      <button data-docjump="docs-controls" class="px-3.5 h-9 rounded-full bg-surface border border-border font-mono text-[10px] uppercase tracking-wider text-ink hover:border-ink/40 transition">Controls</button>
+    </div>
+
+    <!-- ============ OVERVIEW ============ -->
+    <section id="docs-overview" class="rounded-3xl bg-surface border border-border overflow-hidden mb-5 scroll-mt-24">
+      <div class="px-6 md:px-8 pt-6 pb-3 border-b border-border/60">
+        <div class="flex items-center gap-2 font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase"><i data-lucide="layout-dashboard" class="size-3 text-ember"></i> Tab · Overview</div>
+        <h2 class="font-display text-[26px] md:text-[30px] tracking-tight text-ink mt-1.5">Your fleet at a glance</h2>
+        <p class="font-sans text-[14px] text-muted-foreground leading-relaxed mt-2 max-w-3xl">The landing screen — one live snapshot of the whole system: health, load, output, and cost. It refreshes on its own every few seconds, so what you see is always current.</p>
+      </div>
+      <div class="px-6 md:px-8 py-2">
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-border/40"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">Gateway &amp; Telegram status</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">The pills at the top show whether your Hermes gateway is running and whether Telegram is connected. They flip the moment either changes. <span class="font-mono text-[9px] uppercase tracking-wider text-ink/35">source · gateway_state.json</span></div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-border/40"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">Active Missions</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">How many tasks are live on your board right now (To do + In progress) and how many are already done — a quick read on your workload. <span class="font-mono text-[9px] uppercase tracking-wider text-ink/35">source · board.db</span></div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-border/40"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">VPS line (CPU · RAM · Disk)</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">Live health of the server the dashboard runs on, sampled directly on the machine — no guesswork. If a number climbs, you know before it becomes a problem. <span class="font-mono text-[9px] uppercase tracking-wider text-ink/35">source · /proc + statvfs</span></div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-border/40"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">Focus ring</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">A single gauge for how concentrated the fleet's recent work is — a fast "how loaded is the system" read without digging into per-agent numbers.</div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-border/40"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">Tasks Resolved · by agent</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">Total completed agent runs and the overall success rate. This is real activity — every row is an actual agent run that was logged. <span class="font-mono text-[9px] uppercase tracking-wider text-ink/35">source · agent-logs.db</span></div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-border/40"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">Inference Ledger · Model Routing</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">Total tokens used and, if you've enabled the optional routing add-on, the split between your premium and fast models plus the "offload %" (the share sent to the cheaper/faster model). Without routing it simply shows which models your agents actually used. It never shows a made-up "money saved" figure. <span class="font-mono text-[9px] uppercase tracking-wider text-ink/35">source · agent-logs.db (+ optional model-routing.json)</span></div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">Activity ticker</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">A live scroll of the most recent things your agents did — the newest actions first, updating as work happens. <span class="font-mono text-[9px] uppercase tracking-wider text-ink/35">source · agent-logs.db</span></div></div>
+      </div>
+    </section>
+
+    <!-- ============ AGENTS ============ -->
+    <section id="docs-agents" class="rounded-3xl bg-surface border border-border overflow-hidden mb-5 scroll-mt-24">
+      <div class="px-6 md:px-8 pt-6 pb-3 border-b border-border/60">
+        <div class="flex items-center gap-2 font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase"><i data-lucide="users" class="size-3 text-ember"></i> Tab · Agents</div>
+        <h2 class="font-display text-[26px] md:text-[30px] tracking-tight text-ink mt-1.5">Every specialist, measured</h2>
+        <p class="font-sans text-[14px] text-muted-foreground leading-relaxed mt-2 max-w-3xl">The performance view for your five agents — the Orchestrator plus Scout, Scribe, Reach, and Dev. See who's carrying the load, how reliable each one is, and exactly what they've been doing.</p>
+      </div>
+      <div class="px-6 md:px-8 py-2">
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-border/40"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">Fleet header stats</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">Top-line totals for the last 24 hours: tasks logged, average success rate, and the share of work routed to your fast model.</div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-border/40"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">Agent cards</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">One card per agent showing its role, its most recent task, its default model, task count, success rate, and a load bar. <b>Click any card</b> to open its detail drawer.</div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-border/40"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">Agent detail drawer</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">Slides in from the right with one agent's full record: total tasks, success rate, which models it ran on and how often, its most recent tasks, and its last error (if any). Close it with ✕, the Esc key, or by clicking outside. <span class="font-mono text-[9px] uppercase tracking-wider text-ink/35">source · agent-logs.db</span></div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-border/40"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">Task Distribution</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">How the total workload is split across the five agents — at a glance, who is doing most of the work.</div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">Agent Logs · Recent</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">The raw feed at the bottom of the tab — every logged run as a row: time, agent, task, model, and status (completed / failed). This is the source of truth behind the headline numbers. <span class="font-mono text-[9px] uppercase tracking-wider text-ink/35">source · agent-logs.db</span></div></div>
+      </div>
+    </section>
+
+    <!-- ============ CHAT ============ -->
+    <section id="docs-chat" class="rounded-3xl bg-surface border border-border overflow-hidden mb-5 scroll-mt-24">
+      <div class="px-6 md:px-8 pt-6 pb-3 border-b border-border/60">
+        <div class="flex items-center gap-2 font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase"><i data-lucide="message-square" class="size-3 text-ember"></i> Tab · Chat</div>
+        <h2 class="font-display text-[26px] md:text-[30px] tracking-tight text-ink mt-1.5">A direct line to the fleet</h2>
+        <p class="font-sans text-[14px] text-muted-foreground leading-relaxed mt-2 max-w-3xl">Talk to any agent right from the dashboard. Every message runs a <b>real</b> agent turn — not a canned reply — threaded into that agent's live session with full memory.</p>
+      </div>
+      <div class="px-6 md:px-8 py-2">
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-border/40"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">The roster</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">Your five agents down the left. Pick one to open its conversation. Each keeps its own memory, so it remembers what you told it before.</div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-border/40"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">The Orchestrator = your main agent</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">First in the roster and marked <span class="font-mono text-[10px] text-ember">● telegram thread</span>. It's your default Hermes agent — the one Telegram routes to. When you message it here, both your message and its reply also appear in your Telegram, so the dashboard and your phone stay in sync.</div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-border/40"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">The specialists</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">Scout, Scribe, Reach, and Dev each resume their own private session with full memory. They don't have a Telegram thread — they're worked from the dashboard.</div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">Good to know</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">Sending a message spends tokens because it runs a live turn on your model. History is read straight from your Hermes session; the send goes through your real Hermes agent. <span class="font-mono text-[9px] uppercase tracking-wider text-ink/35">source · Hermes state.db (read) + hermes CLI (send)</span></div></div>
+      </div>
+    </section>
+
+    <!-- ============ TASKS ============ -->
+    <section id="docs-tasks" class="rounded-3xl bg-surface border border-border overflow-hidden mb-5 scroll-mt-24">
+      <div class="px-6 md:px-8 pt-6 pb-3 border-b border-border/60">
+        <div class="flex items-center gap-2 font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase"><i data-lucide="list-checks" class="size-3 text-ember"></i> Tab · Tasks</div>
+        <h2 class="font-display text-[26px] md:text-[30px] tracking-tight text-ink mt-1.5">Your personal mission board</h2>
+        <p class="font-sans text-[14px] text-muted-foreground leading-relaxed mt-2 max-w-3xl">This board is <b>yours</b> — your own to-do list, not agent work. Three columns move a task from idea to done. It comes seeded with a couple of example cards per column that you can edit or delete.</p>
+      </div>
+      <div class="px-6 md:px-8 py-2">
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-border/40"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">The three columns</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed"><b>To do</b> (not started), <b>In progress</b> (working on it), and <b>Done</b> (completed). The counts in the hero update as you move cards.</div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-border/40"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">New Mission</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">Add a task with a title, a priority (P1 Critical / P2 High / P3 Normal), and a starting column. It saves instantly and stays after a refresh.</div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-border/40"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">Drag &amp; drop</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">Drag a card between columns to change its status — the move is saved automatically.</div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-border/40"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">Search &amp; priority filter</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">Find a task by title or id, or filter the board down to a single priority (ALL / P1 / P2 / P3).</div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">The card &amp; where it lives</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">Each card shows an id, a priority badge (its colour also tints the left edge), tags, a progress bar, and a delete button that appears on hover. Tasks are stored in the dashboard's own local database — completely separate from your Hermes data. <span class="font-mono text-[9px] uppercase tracking-wider text-ink/35">source · board.db</span></div></div>
+      </div>
+    </section>
+
+    <!-- ============ OFFICE ============ -->
+    <section id="docs-office" class="rounded-3xl bg-surface border border-border overflow-hidden mb-5 scroll-mt-24">
+      <div class="px-6 md:px-8 pt-6 pb-3 border-b border-border/60">
+        <div class="flex items-center gap-2 font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase"><i data-lucide="building-2" class="size-3 text-ember"></i> Tab · Office</div>
+        <h2 class="font-display text-[26px] md:text-[30px] tracking-tight text-ink mt-1.5">Your fleet as a living city</h2>
+        <p class="font-sans text-[14px] text-muted-foreground leading-relaxed mt-2 max-w-3xl">A 3D skyline where each agent is a building and the HQ tower sits at the centre. It's a fun, glance-able way to see who's working right now. <span class="font-mono text-[10px] text-muted-foreground">(The 3D view needs a GPU / WebGL-capable browser.)</span></p>
+      </div>
+      <div class="px-6 md:px-8 py-2">
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-border/40"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">Blue vs. orange</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">A tower glows <b class="text-ink">blue</b> when its agent is actively running a turn, and <b class="text-ember">orange</b> when idle. Message an agent from the Chat tab and watch its tower light up. <span class="font-mono text-[9px] uppercase tracking-wider text-ink/35">source · live working set from the server</span></div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">The counters</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">The small readouts show how many buildings there are, how many have their lights on (agents currently working), and the day's task count.</div></div>
+      </div>
+    </section>
+
+    <!-- ============ CONTENT ============ -->
+    <section id="docs-content" class="rounded-3xl bg-surface border border-border overflow-hidden mb-5 scroll-mt-24">
+      <div class="px-6 md:px-8 pt-6 pb-3 border-b border-border/60">
+        <div class="flex items-center gap-2 font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase"><i data-lucide="folder-open" class="size-3 text-ember"></i> Tab · Content</div>
+        <h2 class="font-display text-[26px] md:text-[30px] tracking-tight text-ink mt-1.5">Everything your agents write</h2>
+        <p class="font-sans text-[14px] text-muted-foreground leading-relaxed mt-2 max-w-3xl">A living library of the long-form work your agents produce — articles, research briefs, scripts, plans. Each agent saves to its own folder, and it all shows up here to read, edit, download, or delete.</p>
+      </div>
+      <div class="px-6 md:px-8 py-2">
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-border/40"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">Stats strip</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">Total documents, how many agents are actively writing, and the most recent piece.</div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-border/40"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">Reading &amp; filtering</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">Click any document to read it fully rendered (headings, lists, code, bold). Filter the list by agent to see just one specialist's output.</div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-border/40"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">New Doc · edit · download · delete</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">Create a document yourself, edit any doc in place, download it as Markdown, or remove it. Every action writes straight to disk.</div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">Where it lives</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">Documents are plain Markdown files in the dashboard's own <span class="font-mono text-[11px]">content/&lt;agent&gt;/</span> folders — nothing is hidden in a database, and nothing touches your Hermes home. <span class="font-mono text-[9px] uppercase tracking-wider text-ink/35">source · content/ on disk</span></div></div>
+      </div>
+    </section>
+
+    <!-- ============ SCHEDULE ============ -->
+    <section id="docs-schedule" class="rounded-3xl bg-surface border border-border overflow-hidden mb-5 scroll-mt-24">
+      <div class="px-6 md:px-8 pt-6 pb-3 border-b border-border/60">
+        <div class="flex items-center gap-2 font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase"><i data-lucide="calendar-clock" class="size-3 text-ember"></i> Tab · Schedule</div>
+        <h2 class="font-display text-[26px] md:text-[30px] tracking-tight text-ink mt-1.5">Automations that run themselves</h2>
+        <p class="font-sans text-[14px] text-muted-foreground leading-relaxed mt-2 max-w-3xl">Your recurring Hermes jobs — the routines that fire on a schedule (a morning briefing, a weekly brainstorm, and so on) — with the controls to manage them.</p>
+      </div>
+      <div class="px-6 md:px-8 py-2">
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-border/40"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">The job list</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">Each job shows its name, its schedule, the next time it will run, where it delivers, its last status, and the model it uses. <span class="font-mono text-[9px] uppercase tracking-wider text-ink/35">source · Hermes cron/jobs.json (read-only)</span></div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-border/40"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">Run · Pause · Resume</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">Trigger a job now, pause one so it stops firing, or resume a paused one — straight from the card. These actions go through your real Hermes.</div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">Top counters</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">How many jobs exist, how many are active, and when the next run is due.</div></div>
+      </div>
+    </section>
+
+    <!-- ============ DATA & SAFETY ============ -->
+    <section id="docs-data" class="rounded-3xl bg-ink text-cream overflow-hidden mb-5 scroll-mt-24">
+      <div class="px-6 md:px-8 pt-6 pb-3 border-b border-cream/10">
+        <div class="flex items-center gap-2 font-mono text-[10px] tracking-[0.2em] text-cream/60 uppercase"><i data-lucide="shield-check" class="size-3 text-ember"></i> Under the hood · Data &amp; safety</div>
+        <h2 class="font-display text-[26px] md:text-[30px] tracking-tight mt-1.5">Real data, kept safe</h2>
+        <p class="font-sans text-[14px] text-cream/70 leading-relaxed mt-2 max-w-3xl">A few principles hold across the whole dashboard, so you can trust what you see.</p>
+      </div>
+      <div class="px-6 md:px-8 py-2">
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-cream/10"><div class="sm:w-56 shrink-0 font-sans text-[14px] font-medium">Read-only on your Hermes</div><div class="flex-1 font-sans text-[13.5px] text-cream/70 leading-relaxed">The dashboard reads your Hermes data (sessions, cron, gateway status) <b>strictly read-only</b>. It never writes to your Hermes home — it cannot corrupt or change your agents' state.</div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-cream/10"><div class="sm:w-56 shrink-0 font-sans text-[14px] font-medium">Its own local files</div><div class="flex-1 font-sans text-[13.5px] text-cream/70 leading-relaxed">The only things it writes are its own: your task board, the activity log, your content documents, and timestamped backups. All live inside the dashboard's project folder. <span class="font-mono text-[9px] uppercase tracking-wider text-cream/40">board.db · agent-logs.db · content/ · backups/</span></div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-cream/10"><div class="sm:w-56 shrink-0 font-sans text-[14px] font-medium">Nothing fabricated</div><div class="flex-1 font-sans text-[13.5px] text-cream/70 leading-relaxed">Every number traces to a real source — your logs, your sessions, your server. There are no invented stats and no fake "savings" figures anywhere.</div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5"><div class="sm:w-56 shrink-0 font-sans text-[14px] font-medium">Private by default</div><div class="flex-1 font-sans text-[13.5px] text-cream/70 leading-relaxed">The server binds to your machine only (127.0.0.1). You reach it remotely over your private Tailscale link — it is never exposed to the public internet.</div></div>
+      </div>
+    </section>
+
+    <!-- ============ CONTROLS ============ -->
+    <section id="docs-controls" class="rounded-3xl bg-surface border border-border overflow-hidden mb-2 scroll-mt-24">
+      <div class="px-6 md:px-8 pt-6 pb-3 border-b border-border/60">
+        <div class="flex items-center gap-2 font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase"><i data-lucide="sliders-horizontal" class="size-3 text-ember"></i> Everywhere · The top bar</div>
+        <h2 class="font-display text-[26px] md:text-[30px] tracking-tight text-ink mt-1.5">Controls you'll use on every tab</h2>
+      </div>
+      <div class="px-6 md:px-8 py-2">
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-border/40"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">Tab bar</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">Switch between Overview, Agents, Chat, Tasks, Office, Content, Schedule, and this Docs page. The active tab is highlighted.</div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-border/40"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">Search</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">Jump to agents, missions, or log entries from anywhere.</div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5 border-b border-border/40"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">Version badge</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">The small <span class="font-mono text-[11px]">v1.x</span> next to the logo tells you which build you're looking at. It bumps every time the dashboard is meaningfully updated.</div></div>
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-5 py-3.5"><div class="sm:w-56 shrink-0 font-sans text-[14px] text-ink font-medium">Status &amp; clock</div><div class="flex-1 font-sans text-[13.5px] text-muted-foreground leading-relaxed">A live gateway-status pill and the current UTC time, so you always know the system is connected and what "now" means for the numbers.</div></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ====================================================== -->
+  <!--   AGENT DETAIL DRAWER                                   -->
+  <!-- ====================================================== -->
+  <div id="agent-drawer" class="fixed inset-0 z-50 hidden">
+    <div id="agent-drawer-scrim" class="absolute inset-0 bg-ink/50 backdrop-blur-sm"></div>
+    <aside class="absolute right-0 top-0 bottom-0 w-full max-w-[440px] bg-surface border-l border-border shadow-2xl overflow-y-auto translate-x-4 transition-transform" id="agent-drawer-panel">
+      <div id="agent-drawer-body" class="p-6"></div>
+    </aside>
+  </div>
+
+</div>
+
+
+<style id="late-parity-overrides">
+  html, body { font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+  * { border-color: oklch(0.85 0.012 70); }
+  .font-display { font-family: "Instrument Serif", "Times New Roman", serif; }
+  .font-sans { font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+  .bg-secondary { background-color: oklch(0.92 0.012 75); }
+  .bg-muted { background-color: oklch(0.91 0.012 75); }
+  .bg-muted-foreground { background-color: oklch(0.45 0.018 60); }
+  .bg-muted-foreground\/60 { background-color: oklch(0.45 0.018 60 / 0.60); }
+  .bg-surface { background-color: oklch(0.93 0.012 75); }
+  .bg-surface-2 { background-color: oklch(0.89 0.014 70); }
+  .bg-cream\/60 { background-color: oklch(0.97 0.012 75 / 0.60); }
+  .border-border\/70 { border-color: oklch(0.85 0.012 70 / 0.70); }
+  .border-border\/80 { border-color: oklch(0.85 0.012 70 / 0.80); }
+  .border-dashed { border-style: dashed; }
+  .bg-ember-soft\/20 { background-color: oklch(0.78 0.16 50 / 0.20); }
+  .placeholder\:text-cream\/40::placeholder { color: oklch(0.97 0.012 75 / 0.40); }
+  .hover\:ring-ink\/30:hover { --tw-ring-color: oklch(0.16 0.012 50 / 0.30); }
+</style>
+
+<!-- Lucide icons -->
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+<!-- Three.js via importmap -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script>
+/* ============== Data ============== */
+let AGENTS = [
+  { code:'A-00', initials:'OR', name:'Orchestrator', role:'Coordinator', channel:'telegram', state:'THINKING',  task:'Routing directive #412 · briefing Scribe', load:48, tokens:'612k', latency:'92ms', success:99.4, tasksToday:184, share:18, defaultModel:'claude-sonnet-4.5' },
+  { code:'A-01', initials:'SC', name:'Scout',        role:'Research',    channel:'#scout',    state:'EXECUTING', task:'Sweeping 14 sources for HF-09 brief',     load:72, tokens:'1.24M', latency:'14ms', success:99.9, tasksToday:312, share:34, defaultModel:'gemini-2.5-pro' },
+  { code:'A-02', initials:'SB', name:'Scribe',       role:'Writing',     channel:'#scribe',   state:'EXECUTING', task:'Drafting longform · 1840 / 2400 words',   load:61, tokens:'450k', latency:'118ms', success:98.7, tasksToday:142, share:22, defaultModel:'claude-opus-4' },
+  { code:'A-03', initials:'RE', name:'Reach',        role:'Marketing',   channel:'#reach',    state:'IDLE',      task:'Awaiting Scribe handoff · last cycle 4m 12s', load:6, tokens:'0', latency:'—', success:99.1, tasksToday:96, share:14, defaultModel:'gpt-5-mini' },
+  { code:'A-04', initials:'DV', name:'Dev',          role:'Engineering', channel:'#dev',      state:'RETRY',     task:'cron sync · node 0x9f timeout · retry 1/3',   load:18, tokens:'92k', latency:'—', success:97.2, tasksToday:68, share:12, defaultModel:'gpt-5' },
+];
+let MODELS = [
+  { id:'claude-sonnet-4.5', label:'Claude Sonnet 4.5', vendor:'Anthropic', tier:'Balanced' },
+  { id:'claude-opus-4',     label:'Claude Opus 4',     vendor:'Anthropic', tier:'Premium'  },
+  { id:'gpt-5',             label:'GPT-5',             vendor:'OpenAI',    tier:'Premium'  },
+  { id:'gpt-5-mini',        label:'GPT-5 Mini',        vendor:'OpenAI',    tier:'Fast'     },
+  { id:'gemini-2.5-pro',    label:'Gemini 2.5 Pro',    vendor:'Google',    tier:'Reasoning'},
+  { id:'gemini-2.5-flash',  label:'Gemini 2.5 Flash',  vendor:'Google',    tier:'Fast'     },
+  { id:'grok-4',            label:'Grok 4',            vendor:'xAI',       tier:'Realtime' },
+];
+const TABS = [
+  { label:'Overview', to:'#/' },
+  { label:'Agents',   to:'#/agents' },
+  { label:'Chat',     to:'#/chat' },
+  { label:'Tasks',    to:'#/tasks' },
+  { label:'Office',   to:'#/office' },
+  { label:'Content',  to:'#/content' },
+  { label:'Schedule', to:'#/schedule' },
+  { label:'Docs',     to:'#/docs' },
+];
+document.addEventListener('click', e => { const j = e.target.closest('[data-docjump]'); if (j){ const el = document.getElementById(j.dataset.docjump); if (el) el.scrollIntoView({behavior:'smooth', block:'start'}); } });
+
+/* ============== TopBar tabs ============== */
+function renderTabs() {
+  const desk = document.getElementById('tabs-desktop');
+  const mob = document.getElementById('tabs-mobile');
+  const hash = location.hash || '#/';
+  desk.innerHTML = ''; mob.innerHTML = '';
+  TABS.forEach(t => {
+    const active = t.to && t.to === hash;
+    const cls = `px-3.5 h-9 rounded-full font-mono text-[11px] tracking-wider uppercase border transition-colors flex items-center justify-center ${active ? 'bg-ink text-cream border-ink' : 'bg-cream text-ink border-border hover:border-ink/40'}`;
+    if (t.to) desk.insertAdjacentHTML('beforeend', `<a href="${t.to}" class="${cls}">${t.label}</a>`);
+    else      desk.insertAdjacentHTML('beforeend', `<button class="${cls} opacity-60 cursor-not-allowed">${t.label}</button>`);
+
+    const mcls = `flex items-center justify-between px-4 h-11 rounded-2xl font-mono text-[12px] tracking-wider uppercase border transition-colors ${active ? 'bg-ember text-cream border-ember' : 'bg-cream/5 text-cream border-cream/10 hover:bg-cream/10'}`;
+    if (t.to) mob.insertAdjacentHTML('beforeend', `<a href="${t.to}" class="${mcls}"><span>${t.label}</span><span class="font-mono text-[9px] opacity-60">${active ? '● live' : '→'}</span></a>`);
+    else      mob.insertAdjacentHTML('beforeend', `<button disabled class="${mcls} opacity-50 cursor-not-allowed"><span>${t.label}</span><span class="font-mono text-[9px] opacity-60">soon</span></button>`);
+  });
+}
+
+/* ============== Content library ============== */
+const CONTENT_TINTS = { orchestrator:'oklch(0.66 0.22 38)', scout:'oklch(0.62 0.16 200)', scribe:'oklch(0.72 0.16 90)', reach:'oklch(0.62 0.20 340)', dev:'oklch(0.62 0.16 150)' };
+let CONTENT_DOCS = [], CONTENT_FILTER = 'all', CONTENT_SEL = null, CONTENT_WIRED = false;
+let DEMO_CONTENT_DOCS = [{"agent": "dev", "filename": "2026-07-07_dashboard-notes.md", "title": "Mission Control — Build Notes", "modified_at": "2026-07-07T08:56:46.252560+00:00", "size": 185}, {"agent": "scribe", "filename": "2026-07-07_budget-agents-intro.md", "title": "Building AI Agents on a Budget", "modified_at": "2026-07-07T08:56:46.252504+00:00", "size": 254}, {"agent": "scout", "filename": "2026-07-07_multi-agent-trends.md", "title": "Multi-Agent Systems Are Trending", "modified_at": "2026-07-07T08:56:46.252418+00:00", "size": 292}];
+const DEMO_CONTENT_TEXT = {"dev|2026-07-07_dashboard-notes.md": "# Mission Control — Build Notes\n\n## Stack\n- Python stdlib server, read-only on Hermes DBs\n- SSE live stream + agent drawer + content library\n\n## TODO\n- Telegram alerts\n- Schedule tab\n", "scribe|2026-07-07_budget-agents-intro.md": "# Building AI Agents on a Budget\n\nA short intro draft.\n\nYou do not need a huge API bill to run a real multi-agent system. With a cheap VPS and a subscription model, you can `route` simple work to a fast model and keep the premium one for the hard stuff.\n", "scout|2026-07-07_multi-agent-trends.md": "# Multi-Agent Systems Are Trending\n\nResearch summary for the channel.\n\n## Why now\n- Orchestrator + specialist pattern is winning\n- Cheap models make routing viable\n- **MiniMax-M3** + gpt-5.5 complexity routing cuts load\n\n## Sources\n- [Hermes docs](https://hermes-agent.nousresearch.com/docs)\n"};
+const cEsc = s => (s??'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function cAgo(iso){ if(!iso) return '—'; const s=(Date.now()-new Date(iso))/1000; if(s<60)return'just now'; if(s<3600)return Math.floor(s/60)+'m ago'; if(s<86400)return Math.floor(s/3600)+'h ago'; return Math.floor(s/86400)+'d ago'; }
+function cKebab(t){ return (t||'').toLowerCase().trim().replace(/[^a-z0-9\s-]/g,'').replace(/\s+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').slice(0,60) || 'untitled'; }
+function cToday(){ const d=new Date(); return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`; }
+
+// minimal, safe markdown -> html (escapes first, then applies inline/block rules)
+function mdRender(src){
+  const lines = (src||'').replace(/\r\n/g,'\n').split('\n');
+  let html='', inCode=false, inList=false;
+  const inline = t => cEsc(t)
+    .replace(/`([^`]+)`/g,'<code class="px-1 py-0.5 rounded bg-cream/60 font-mono text-[12px]">$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g,'<em>$1</em>')
+    .replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g,'<a href="$2" target="_blank" class="text-ember underline">$1</a>');
+  for(const raw of lines){
+    if(raw.trim().startsWith('```')){ if(inCode){html+='</code></pre>';inCode=false;} else {if(inList){html+='</ul>';inList=false;} html+='<pre class="rounded-2xl bg-ink text-cream p-4 overflow-x-auto my-3"><code class="font-mono text-[12px] leading-relaxed">';inCode=true;} continue; }
+    if(inCode){ html+=cEsc(raw)+'\n'; continue; }
+    const h=raw.match(/^(#{1,4})\s+(.*)$/);
+    if(h){ if(inList){html+='</ul>';inList=false;} const lv=h[1].length; const sz=['','text-[26px]','text-[20px]','text-[16px]','text-[14px]'][lv]; html+=`<h${lv} class="font-display ${sz} text-ink font-semibold mt-4 mb-2">${inline(h[2])}</h${lv}>`; continue; }
+    if(/^\s*[-*]\s+/.test(raw)){ if(!inList){html+='<ul class="list-disc pl-5 my-2 space-y-1">';inList=true;} html+=`<li class="text-[14px] text-ink/90">${inline(raw.replace(/^\s*[-*]\s+/,''))}</li>`; continue; }
+    if(inList){html+='</ul>';inList=false;}
+    if(raw.trim()==='') { html+=''; continue; }
+    html+=`<p class="text-[14px] text-ink/90 leading-relaxed my-2">${inline(raw)}</p>`;
+  }
+  if(inList)html+='</ul>'; if(inCode)html+='</code></pre>';
+  return html;
+}
+
+async function loadContentDocs(){
+  wireContentOnce();
+  CONTENT_DOCS = DEMO_CONTENT_DOCS;
+  // stats
+  document.getElementById('content-total').textContent = CONTENT_DOCS.length;
+  document.getElementById('content-agents').textContent = new Set(CONTENT_DOCS.map(d=>d.agent)).size;
+  const latest = CONTENT_DOCS[0];
+  document.getElementById('content-latest').textContent = latest ? latest.title : '—';
+  document.getElementById('content-latest-meta').textContent = latest ? `${latest.agent} · ${cAgo(latest.modified_at)}` : '';
+  // filter pills
+  const agents = ['all', ...Array.from(new Set(CONTENT_DOCS.map(d=>d.agent)))];
+  document.getElementById('content-filter').innerHTML = ['all','orchestrator','scout','scribe','reach','dev'].map(a=>{
+    const active = CONTENT_FILTER===a;
+    const dot = a==='all' ? '' : `<span class="size-2 rounded-full" style="background:${CONTENT_TINTS[a]}"></span>`;
+    return `<button data-cfilter="${a}" class="inline-flex items-center gap-1.5 px-3 h-8 rounded-full font-mono text-[10px] uppercase tracking-wider border transition ${active?'bg-ink text-cream border-ink':'bg-cream text-ink border-border hover:border-ink/40'}">${dot}${a}</button>`;
+  }).join('');
+  renderContentList();
+  // auto-select first
+  const list = CONTENT_DOCS.filter(d=>CONTENT_FILTER==='all'||d.agent===CONTENT_FILTER);
+  if(list.length && !CONTENT_SEL) openDoc(list[0]);
+  else if(!list.length){ CONTENT_SEL=null; document.getElementById('content-reader').innerHTML = '<div class="grid place-items-center h-full min-h-[360px]"><span class="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">Select a document to read</span></div>'; }
+}
+
+function renderContentList(){
+  const list = CONTENT_DOCS.filter(d=>CONTENT_FILTER==='all'||d.agent===CONTENT_FILTER);
+  const ul = document.getElementById('content-list');
+  if(!list.length){ ul.innerHTML='<li class="font-mono text-[11px] text-muted-foreground p-3">No documents yet.</li>'; return; }
+  ul.innerHTML = list.map(d=>{
+    const sel = CONTENT_SEL && CONTENT_SEL.agent===d.agent && CONTENT_SEL.filename===d.filename;
+    return `<li data-cdoc="${d.agent}|${d.filename}" class="flex items-center gap-2.5 p-2.5 rounded-2xl bg-cream border transition cursor-pointer ${sel?'border-l-2 border-l-ember border-border':'border-border hover:border-ink/40'}">
+      <span class="shrink-0 px-1.5 py-0.5 rounded-md font-mono text-[9px] font-bold uppercase text-cream" style="background:${CONTENT_TINTS[d.agent]}">${d.agent.slice(0,2)}</span>
+      <div class="min-w-0 flex-1"><div class="font-sans text-[13px] text-ink truncate">${cEsc(d.title)}</div>
+        <div class="font-mono text-[10px] text-muted-foreground">${cAgo(d.modified_at)}</div></div>
+    </li>`;
+  }).join('');
+}
+
+async function openDoc(d){
+  CONTENT_SEL = { agent:d.agent, filename:d.filename, title:d.title };
+  renderContentList();
+  const reader = document.getElementById('content-reader');
+  reader.innerHTML = '<div class="font-mono text-[11px] uppercase tracking-widest text-muted-foreground py-10 text-center">loading…</div>';
+  let text = DEMO_CONTENT_TEXT[d.agent+'|'+d.filename] || ('# '+(d.title||'Untitled')+'\n\n_(template preview — content is hard-coded)_');
+  CONTENT_SEL.text = text;
+  const dateM = d.filename.match(/^(\d{4}-\d{2}-\d{2})/);
+  reader.innerHTML = `
+    <div class="flex items-center justify-between gap-3 mb-4 pb-4 border-b border-border">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <span class="shrink-0 px-2 py-1 rounded-lg font-mono text-[10px] font-bold uppercase text-cream" style="background:${CONTENT_TINTS[d.agent]}">${cEsc(d.agent)}</span>
+        <span class="font-mono text-[10px] text-muted-foreground">${dateM?dateM[1]:''}</span>
+        <span class="font-sans text-[20px] font-semibold text-ink truncate">${cEsc(d.title)}</span>
+      </div>
+      <div class="flex items-center gap-1.5 shrink-0">
+        <button id="doc-edit" title="Edit" class="size-9 rounded-full bg-cream border border-border grid place-items-center hover:bg-ember hover:text-cream transition"><i data-lucide="pencil" class="size-3.5"></i></button>
+        <button id="doc-dl" title="Download" class="size-9 rounded-full bg-cream border border-border grid place-items-center hover:bg-ink hover:text-cream transition"><i data-lucide="download" class="size-3.5"></i></button>
+        <button id="doc-del" title="Delete" class="size-9 rounded-full bg-cream border border-border grid place-items-center hover:bg-red-500 hover:text-cream transition"><i data-lucide="x" class="size-3.5"></i></button>
+      </div>
+    </div>
+    <div id="content-body" class="prose-hermes">${mdRender(text)}</div>`;
+  lucide.createIcons();
+  document.getElementById('doc-edit').onclick = ()=>editDoc();
+  document.getElementById('doc-dl').onclick = ()=>{ const b=new Blob([CONTENT_SEL.text],{type:'text/markdown'}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=d.filename; a.click(); URL.revokeObjectURL(u); };
+  document.getElementById('doc-del').onclick = async ()=>{ if(!confirm('Delete this document?'))return; const i=DEMO_CONTENT_DOCS.findIndex(x=>x.agent===d.agent&&x.filename===d.filename); if(i>=0) DEMO_CONTENT_DOCS.splice(i,1); CONTENT_SEL=null; loadContentDocs(); };
+}
+
+function editDoc(){
+  const d = CONTENT_SEL; const reader = document.getElementById('content-reader');
+  const body = reader.querySelector('#content-body');
+  const bar = reader.querySelector('.flex.items-center.gap-1\\.5');
+  body.outerHTML = `<textarea id="doc-editor" rows="18" class="w-full px-4 py-3 rounded-2xl bg-cream border border-border outline-none font-mono text-[13px] text-ink focus:border-ink/40 resize-y">${cEsc(d.text)}</textarea>
+    <div class="flex items-center gap-3 mt-3"><button id="doc-save" class="px-5 h-10 rounded-2xl bg-ember text-cream font-mono text-[11px] tracking-wider uppercase hover:brightness-110 transition">Save</button>
+    <button id="doc-cancel" class="px-4 h-10 rounded-2xl bg-cream border border-border text-muted-foreground font-mono text-[11px] tracking-wider uppercase hover:text-ink transition">Cancel</button></div>`;
+  document.getElementById('doc-save').onclick = async ()=>{
+    const val = document.getElementById('doc-editor').value;
+    DEMO_CONTENT_TEXT[d.agent+'|'+d.filename] = val;
+    CONTENT_SEL.text = val; openDoc(d); loadContentDocs();
+  };
+  document.getElementById('doc-cancel').onclick = ()=>openDoc(d);
+}
+
+function wireContentOnce(){
+  if(CONTENT_WIRED) return; CONTENT_WIRED = true;
+  const form = document.getElementById('new-doc-form');
+  document.getElementById('new-doc-btn').onclick = ()=>{ form.classList.toggle('hidden'); if(!form.classList.contains('hidden')) document.getElementById('nd-title').focus(); };
+  document.getElementById('nd-cancel').onclick = ()=>form.classList.add('hidden');
+  document.getElementById('nd-create').onclick = async ()=>{
+    const agent = document.getElementById('nd-agent').value;
+    const title = document.getElementById('nd-title').value.trim();
+    if(!title) return;
+    let body = document.getElementById('nd-body').value;
+    if(!/^\s*#\s+/.test(body)) body = `# ${title}\n\n` + body;
+    const file = `${cToday()}_${cKebab(title)}.md`;
+    DEMO_CONTENT_TEXT[agent+'|'+file] = body;
+    DEMO_CONTENT_DOCS.unshift({ agent, filename:file, title, modified_at:new Date().toISOString() });
+    document.getElementById('nd-title').value=''; document.getElementById('nd-body').value=''; form.classList.add('hidden');
+    CONTENT_SEL = { agent, filename:file }; loadContentDocs();
+  };
+  // delegated clicks for filter pills + doc rows
+  document.getElementById('content-filter').addEventListener('click', e=>{ const b=e.target.closest('[data-cfilter]'); if(b){ CONTENT_FILTER=b.dataset.cfilter; CONTENT_SEL=null; loadContentDocs(); }});
+  document.getElementById('content-list').addEventListener('click', e=>{ const li=e.target.closest('[data-cdoc]'); if(li){ const [a,f]=li.dataset.cdoc.split('|'); const doc=CONTENT_DOCS.find(x=>x.agent===a&&x.filename===f); if(doc) openDoc(doc); }});
+}
+
+/* ============== Chat ============== */
+const CHAT_AGENTS_UI = [
+  { key:'orchestrator', name:'Orchestrator', role:'Coordinator', ini:'OR', tint:'oklch(0.66 0.22 38)' },
+  { key:'scout',        name:'Scout',        role:'Research',    ini:'SC', tint:'oklch(0.62 0.16 200)' },
+  { key:'scribe',       name:'Scribe',       role:'Writing',     ini:'SB', tint:'oklch(0.72 0.16 90)' },
+  { key:'reach',        name:'Reach',        role:'Marketing',   ini:'RE', tint:'oklch(0.62 0.20 340)' },
+  { key:'dev',          name:'Dev',          role:'Engineering', ini:'DV', tint:'oklch(0.62 0.16 150)' },
+];
+const CHAT_HIST = {};           // {agentKey: [{role,text,ts}]}
+const CHAT_LOADED = {}, CHAT_TEL = {};   // per-agent: history backfilled?, is telegram thread?
+const CHAT_BUSY = {};           // per-agent in-flight flag
+const DEMO_CHAT = {
+  orchestrator: { telegram:true, messages:[
+    {role:'user',  text:'What should we prioritise today?', ts: Date.now()-3600000},
+    {role:'agent', text:'Two strong options:\n1. The mission-control dashboard build (most-requested by the audience)\n2. Cron automations for the fleet\nI\u2019d lead with the dashboard.', ts: Date.now()-3590000},
+  ]},
+  scout: { telegram:false, messages:[
+    {role:'user',  text:'Find the top 3 agent frameworks trending this week.', ts: Date.now()-7200000},
+    {role:'agent', text:'On it — sweeping sources now. Early signal: Hermes, OpenClaw and one newcomer. Full brief saved to the Content library.', ts: Date.now()-7195000},
+  ]},
+};
+let CHAT_CUR = 'orchestrator', CHAT_WIRED = false;
+function updateSendBtn(){ const b=document.getElementById('chat-send'); if(b) b.disabled = !!CHAT_BUSY[CHAT_CUR]; }
+function chatTime(ts){ try{ return new Date(ts).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } }
+function chatMeta(k){ return CHAT_AGENTS_UI.find(a=>a.key===k) || CHAT_AGENTS_UI[0]; }
+
+function loadChat(){
+  wireChatOnce();
+  renderRoster();
+  selectChat(CHAT_CUR);
+}
+function renderRoster(){
+  document.getElementById('chat-roster').innerHTML = CHAT_AGENTS_UI.map(a=>{
+    const sel = a.key===CHAT_CUR;
+    const last = (CHAT_HIST[a.key]||[]).slice(-1)[0];
+    return `<button data-chat="${a.key}" class="w-full flex items-center gap-2.5 p-2.5 rounded-2xl mb-1 text-left transition ${sel?'bg-ink text-cream':'hover:bg-cream'}">
+      <span class="relative shrink-0"><span class="size-9 rounded-xl grid place-items-center font-mono text-[11px] font-bold text-cream" style="background:${a.tint}">${a.ini}</span>
+        <span class="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-ember border-2 ${sel?'border-ink':'border-cream'}"></span></span>
+      <div class="min-w-0 flex-1"><div class="font-sans text-[13px] font-semibold truncate ${sel?'text-cream':'text-ink'}">${a.name}</div>
+        <div class="font-mono text-[9px] uppercase tracking-wider truncate ${sel?'text-cream/60':'text-muted-foreground'}">${last?cEsc((last.text||'').slice(0,26)):a.role}</div></div>
+    </button>`;
+  }).join('');
+}
+async function selectChat(key){
+  CHAT_CUR = key; renderRoster();
+  const a = chatMeta(key);
+  const telBadge = CHAT_TEL[key] ? '<span class="font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-ember/12 text-ember">● telegram thread</span>' : '';
+  document.getElementById('chat-header-agent').innerHTML =
+    `<span class="size-9 rounded-xl grid place-items-center font-mono text-[11px] font-bold text-cream shrink-0" style="background:${a.tint}">${a.ini}</span>
+     <div class="min-w-0"><div class="flex items-center gap-2"><div class="font-sans text-[15px] font-semibold text-ink truncate">${a.name}</div>${telBadge}</div>
+       <div class="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">${a.role}</div></div>`;
+  updateSendBtn(); setChatLive(CHAT_BUSY[key] ? 'live' : 'idle');
+  renderMessages();
+  // backfill real conversation history from Hermes (read-only) once per agent
+  if(!CHAT_LOADED[key]){
+    CHAT_LOADED[key] = true;
+    try{
+      const h = DEMO_CHAT[key] || {telegram:false, messages:[]};
+      CHAT_TEL[key] = !!h.telegram;
+      if(h.messages && h.messages.length && !(CHAT_HIST[key] && CHAT_HIST[key].length)){ CHAT_HIST[key] = h.messages.slice(); }
+      if(CHAT_CUR===key){ renderRoster(); renderMessages();
+        // refresh header telegram badge now that we know
+        const b = CHAT_TEL[key] ? '<span class="font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-ember/12 text-ember">● telegram thread</span>' : '';
+        const hdr=document.getElementById('chat-header-agent'); if(hdr) hdr.innerHTML=`<span class="size-9 rounded-xl grid place-items-center font-mono text-[11px] font-bold text-cream shrink-0" style="background:${a.tint}">${a.ini}</span><div class="min-w-0"><div class="flex items-center gap-2"><div class="font-sans text-[15px] font-semibold text-ink truncate">${a.name}</div>${b}</div><div class="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">${a.role}</div></div>`;
+      }
+    }catch(e){}
+  }
+}
+function renderMessages(){
+  const box = document.getElementById('chat-messages');
+  const hist = CHAT_HIST[CHAT_CUR] || [];
+  if(!hist.length){ const a=chatMeta(CHAT_CUR);
+    box.innerHTML = `<div class="grid place-items-center h-full text-center"><div><div class="size-14 mx-auto rounded-2xl grid place-items-center font-mono text-[15px] font-bold text-cream mb-3" style="background:${a.tint}">${a.ini}</div><p class="font-sans text-[14px] text-ink">Say hello to ${a.name}</p><p class="font-mono text-[11px] text-muted-foreground mt-1">Every message runs a real agent turn.</p></div></div>`; return; }
+  box.innerHTML = hist.map(m=>{
+    if(m.role==='user') return `<div class="flex justify-end"><div class="max-w-[80%]"><div class="rounded-2xl rounded-br-md bg-ink text-cream px-4 py-2.5 font-sans text-[14px] whitespace-pre-wrap break-words">${cEsc(m.text)}</div><div class="font-mono text-[9px] text-muted-foreground mt-1 text-right">${chatTime(m.ts)}</div></div></div>`;
+    const a=chatMeta(CHAT_CUR);
+    const typing = m.typing ? '<span class="inline-flex gap-1"><span class="size-1.5 rounded-full bg-muted-foreground animate-bounce" style="animation-delay:0s"></span><span class="size-1.5 rounded-full bg-muted-foreground animate-bounce" style="animation-delay:.15s"></span><span class="size-1.5 rounded-full bg-muted-foreground animate-bounce" style="animation-delay:.3s"></span></span>' : '';
+    return `<div class="flex justify-start gap-2"><span class="size-7 rounded-lg grid place-items-center font-mono text-[9px] font-bold text-cream shrink-0 mt-0.5" style="background:${a.tint}">${a.ini}</span>
+      <div class="max-w-[80%]"><div class="rounded-2xl rounded-bl-md bg-cream border border-border text-ink px-4 py-2.5 font-sans text-[14px] whitespace-pre-wrap break-words">${m.typing?typing:cEsc(m.text)}</div><div class="font-mono text-[9px] text-muted-foreground mt-1">${m.typing?'thinking…':chatTime(m.ts)}</div></div></div>`;
+  }).join('');
+  box.scrollTop = box.scrollHeight;
+}
+function setChatLive(state){
+  const el=document.getElementById('chat-live');
+  const map={idle:['#c9bfa8','idle'],live:['#7cc47c','live'],err:['#e5484d','error']};
+  const [c,t]=map[state]||map.idle;
+  el.innerHTML=`<span class="size-2 rounded-full" style="background:${c}"></span>${t}`;
+}
+async function sendChat(){
+  const key=CHAT_CUR;                     // capture the agent at send time
+  if(CHAT_BUSY[key]) return;              // only block THIS agent, not the others
+  const inp=document.getElementById('chat-input'); const text=inp.value.trim(); if(!text) return;
+  (CHAT_HIST[key]=CHAT_HIST[key]||[]).push({role:'user',text,ts:Date.now()});
+  inp.value=''; inp.style.height='auto';
+  const reply={role:'agent',text:'',ts:Date.now(),typing:true};
+  CHAT_HIST[key].push(reply);
+  CHAT_BUSY[key]=true; updateSendBtn(); if(CHAT_CUR===key) setChatLive('live');
+  renderMessages(); renderRoster();
+  try{
+    await new Promise(r=>setTimeout(r,650));
+    reply.typing=false;
+    const canned = chatMeta(key).name+' (template preview): this is a hard-coded reply. Once the tutorial prompts wire the backend, every message runs a real agent turn — threaded into the live Telegram session for Aria.';
+    const words = canned.split(' ');
+    for(let i=0;i<words.length;i++){ reply.text += (i?' ':'')+words[i]; if(CHAT_CUR===key) renderMessages(); await new Promise(r=>setTimeout(r,42)); }
+    reply.ts=Date.now();
+    if(CHAT_CUR===key) setChatLive('idle');
+  }catch(e){ reply.typing=false; reply.text='⚠️ preview error'; if(CHAT_CUR===key) setChatLive('err'); }
+  CHAT_BUSY[key]=false; updateSendBtn();
+  renderRoster(); if(CHAT_CUR===key){ renderMessages(); document.getElementById('chat-input').focus(); }
+}
+function wireChatOnce(){
+  if(CHAT_WIRED) return; CHAT_WIRED=true;
+  const inp=document.getElementById('chat-input');
+  document.getElementById('chat-send').onclick=sendChat;
+  document.getElementById('chat-clear').onclick=()=>{ CHAT_HIST[CHAT_CUR]=[]; CHAT_LOADED[CHAT_CUR]=false; renderMessages(); renderRoster(); };
+  document.getElementById('chat-roster').addEventListener('click',e=>{ const b=e.target.closest('[data-chat]'); if(b) selectChat(b.dataset.chat); });
+  inp.addEventListener('keydown',e=>{
+    if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendChat(); }
+    else if(e.key==='Escape'){ inp.blur(); }
+  });
+  inp.addEventListener('input',()=>{ inp.style.height='auto'; inp.style.height=Math.min(inp.scrollHeight,140)+'px'; });
+}
+
+/* ============== Schedule ============== */
+let SCHED_WIRED = false;
+const DEMO_HERMES_CRON = [{"id": "5dd7c316ca98", "name": "Morning briefing", "enabled": false, "state": "paused", "schedule": "0 8 * * *", "next_run_at": "2026-07-08T08:00:00+00:00", "last_status": "ok", "last_error": null, "deliver": "telegram", "model": "MiniMax-M3", "prompt": "Give Larry a short morning briefing: date, anything scheduled today, and one useful nudge for the Komputer Mechanic content machine. Keep it under 6 lines."}, {"id": "c7e9f47e1277", "name": "Weekly video ideas", "enabled": false, "state": "paused", "schedule": "0 9 * * 1", "next_run_at": "2026-07-13T09:00:00+00:00", "last_status": null, "last_error": null, "deliver": "telegram", "model": "MiniMax-M3", "prompt": "Suggest 3 fresh Komputer Mechanic video ideas about Hermes/AI agents, each with a one-line hook. Keep it tight."}];
+function schedRel(iso){ if(!iso) return '—'; const s=(new Date(iso)-Date.now())/1000;
+  if(s<0) return 'overdue'; if(s<60) return 'in '+Math.round(s)+'s'; if(s<3600) return 'in '+Math.round(s/60)+'m';
+  if(s<86400) return 'in '+Math.round(s/3600)+'h'; if(s<2592000) return 'in '+Math.round(s/86400)+'d'; return 'in '+Math.round(s/2592000)+'mo'; }
+function schedWhen(iso){ if(!iso) return ''; try{ return new Date(iso).toISOString().replace('T',' ').slice(0,16)+' UTC'; }catch(e){ return ''; } }
+
+async function loadSchedule(){
+  wireScheduleOnce();
+  const jobs = DEMO_HERMES_CRON;
+  const active = jobs.filter(j=>j.enabled && j.state!=='paused');
+  document.getElementById('sched-total').textContent = jobs.length;
+  document.getElementById('sched-active').textContent = active.length;
+  const upcoming = jobs.filter(j=>j.next_run_at && j.enabled).sort((a,b)=>new Date(a.next_run_at)-new Date(b.next_run_at))[0];
+  document.getElementById('sched-next').textContent = upcoming ? schedRel(upcoming.next_run_at) : '—';
+  document.getElementById('sched-next-name').textContent = upcoming ? upcoming.name : 'no active jobs';
+
+  const wrap = document.getElementById('sched-hermes');
+  if(!jobs.length){ wrap.innerHTML = '<div class="rounded-2xl border border-dashed border-border p-6 text-center"><span class="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">No Hermes jobs yet — create one with <span class="text-ink">hermes cron create</span></span></div>'; }
+  else wrap.innerHTML = jobs.map(j=>{
+    const paused = !j.enabled || j.state==='paused';
+    const statusBadge = j.last_status==='failed'
+      ? '<span class="px-2 py-0.5 rounded-full bg-red-500/12 text-red-500 font-mono text-[9px] uppercase tracking-wider">last: failed</span>'
+      : j.last_status ? `<span class="px-2 py-0.5 rounded-full bg-ember/12 text-ember font-mono text-[9px] uppercase tracking-wider">last: ${cEsc(j.last_status)}</span>` : '';
+    const stateDot = paused ? 'bg-[#c9bfa8]' : 'bg-ember';
+    return `<div class="rounded-2xl bg-cream border border-border p-4">
+      <div class="flex items-start justify-between gap-3 flex-wrap">
+        <div class="flex items-start gap-3 min-w-0">
+          <span class="mt-1.5 size-2 rounded-full ${stateDot} shrink-0"></span>
+          <div class="min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="font-sans text-[15px] text-ink font-semibold truncate">${cEsc(j.name)}</span>
+              <span class="font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-surface border border-border text-muted-foreground">${paused?'paused':'active'}</span>
+              ${statusBadge}
+            </div>
+            <p class="font-sans text-[12px] text-muted-foreground truncate mt-0.5">${cEsc(j.prompt||(j.no_agent?'(script job)':''))||'—'}</p>
+            <div class="flex items-center gap-3 flex-wrap font-mono text-[10px] text-muted-foreground mt-1.5">
+              <span class="text-ink">⏱ ${cEsc(j.schedule)}</span>
+              <span>next ${schedRel(j.next_run_at)} · ${schedWhen(j.next_run_at)}</span>
+              ${j.deliver?`<span>→ ${cEsc(j.deliver)}</span>`:''}
+              ${j.model?`<span>${cEsc(j.model)}</span>`:''}
+            </div>
+            ${j.last_error?`<p class="font-mono text-[10px] text-red-500 mt-1 truncate">${cEsc(j.last_error)}</p>`:''}
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button data-cron="run" data-id="${cEsc(j.id)}" title="Run now" class="inline-flex items-center gap-1 px-3 h-9 rounded-full bg-ember text-cream font-mono text-[10px] uppercase tracking-wider hover:brightness-110 transition"><i data-lucide="play" class="size-3"></i> Run</button>
+          ${paused
+            ? `<button data-cron="resume" data-id="${cEsc(j.id)}" title="Resume" class="size-9 rounded-full bg-cream border border-border grid place-items-center hover:border-ink/40 transition"><i data-lucide="play-circle" class="size-3.5"></i></button>`
+            : `<button data-cron="pause" data-id="${cEsc(j.id)}" title="Pause" class="size-9 rounded-full bg-cream border border-border grid place-items-center hover:border-ink/40 transition"><i data-lucide="pause" class="size-3.5"></i></button>`}
+          <button data-cron="delete" data-id="${cEsc(j.id)}" title="Delete job" class="size-9 rounded-full bg-cream border border-border grid place-items-center text-muted-foreground hover:border-ember hover:text-ember transition"><i data-lucide="trash-2" class="size-3.5"></i></button>
+        </div>
+      </div></div>`;
+  }).join('');
+  lucide.createIcons();
+}
+
+function wireScheduleOnce(){
+  if(SCHED_WIRED) return; SCHED_WIRED = true;
+  document.getElementById('sched-refresh').onclick = ()=>loadSchedule();
+  document.getElementById('sched-hermes').addEventListener('click', async e=>{
+    const b = e.target.closest('[data-cron]'); if(!b) return;
+    const action = b.dataset.cron, id = b.dataset.id;
+    if(action==='run' && !confirm('Run this job now?')) return;
+    if(action==='delete' && !confirm('Delete this job permanently? This cannot be undone.')) return;
+    alert('Template preview — cron actions (run / pause / resume / delete) get wired to Hermes later by the tutorial prompts.');
+  });
+}
+
+/* ============== Routing ============== */
+const ROUTE_TITLES = { '#/':'Hermes — Agent Mission Control', '#/agents':'Agents — Hermes Mission Control', '#/tasks':'Tasks — Hermes Mission Control', '#/office':'Office — Hermes Empire', '#/content':'Content — Hermes Library', '#/schedule':'Schedule — Hermes Automation', '#/chat':'Chat — Talk to the fleet', '#/docs':'Docs — Dashboard guide' };
+function applyRoute() {
+  const map = { '#/':'route-overview', '#/agents':'route-agents', '#/tasks':'route-tasks', '#/office':'route-office', '#/content':'route-content', '#/schedule':'route-schedule', '#/chat':'route-chat', '#/docs':'route-docs' };
+  const hashKey = location.hash || '#/';
+  const id = map[hashKey] || 'route-overview';
+  document.title = ROUTE_TITLES[hashKey] || ROUTE_TITLES['#/'];
+  document.querySelectorAll('.route').forEach(el => el.classList.toggle('active', el.id === id));
+  renderTabs();
+  document.getElementById('mobile-sheet').classList.add('hidden');
+  document.getElementById('menu-icon').setAttribute('data-lucide','menu');
+  lucide.createIcons();
+  if (id === 'route-office') initEmpire();
+  if (id === 'route-content') loadContentDocs();
+  if (id === 'route-schedule') loadSchedule();
+  if (id === 'route-chat') loadChat();
+  window.scrollTo(0,0);
+}
+window.addEventListener('hashchange', applyRoute);
+
+/* ============== Clock ============== */
+function tickClock() {
+  const t = new Date().toISOString().slice(11,19);
+  document.getElementById('utc-clock').textContent = t;
+  document.getElementById('utc-clock-m').textContent = t;
+}
+
+/* ============== Mobile menu ============== */
+document.addEventListener('click', (e) => {
+  if (e.target.closest('#menu-btn')) {
+    const sheet = document.getElementById('mobile-sheet');
+    sheet.classList.toggle('hidden');
+    const open = !sheet.classList.contains('hidden');
+    document.getElementById('menu-icon').setAttribute('data-lucide', open ? 'x' : 'menu');
+    lucide.createIcons();
+  }
+});
+
+/* ============== Overview render ============== */
+function renderOverview() {
+  // Hero orbit SVG
+  const orbit = document.getElementById('hero-orbit');
+  const initials = ['OR','SC','SB','RE','DV'];
+  let svg = `<defs><radialGradient id="core" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="oklch(0.78 0.18 50)"/>
+    <stop offset="60%" stop-color="oklch(0.66 0.22 38)"/>
+    <stop offset="100%" stop-color="oklch(0.55 0.20 35 / 0)"/>
+  </radialGradient></defs>`;
+  [60,95,130].forEach(r => svg += `<ellipse cx="400" cy="120" rx="${r*2.4}" ry="${r}" fill="none" stroke="rgba(245,234,212,0.10)" stroke-dasharray="2 6"/>`);
+  for (let i=0;i<5;i++) {
+    const a = (i/5)*Math.PI*2 + Math.PI;
+    const x = (400 + Math.cos(a)*280).toFixed(1);
+    const y = (120 + Math.sin(a)*90).toFixed(1);
+    svg += `<g><line x1="400" y1="120" x2="${x}" y2="${y}" stroke="oklch(0.66 0.22 38 / 0.55)" stroke-width="1" stroke-dasharray="3 5" class="animate-dash"/>
+      <circle cx="${x}" cy="${y}" r="22" fill="oklch(0.18 0.012 50)" stroke="oklch(0.66 0.22 38 / 0.6)"/>
+      <text x="${x}" y="${(parseFloat(y)+4).toFixed(1)}" text-anchor="middle" fill="oklch(0.97 0.012 75)" font-family="JetBrains Mono" font-size="10" font-weight="600">${initials[i]}</text></g>`;
+  }
+  svg += `<circle cx="400" cy="120" r="46" fill="url(#core)"/>
+    <circle cx="400" cy="120" r="34" fill="oklch(0.16 0.012 50)" stroke="oklch(0.97 0.012 75 / 0.3)"/>
+    <text x="400" y="118" text-anchor="middle" fill="oklch(0.97 0.012 75)" font-family="Instrument Serif" font-size="22" font-style="italic">h</text>
+    <text x="400" y="132" text-anchor="middle" fill="oklch(0.66 0.22 38)" font-family="JetBrains Mono" font-size="7" letter-spacing="3">CORE</text>`;
+  orbit.innerHTML = svg;
+
+  // Logs
+  const LOGS = (window.LIVE && LIVE.logs && LIVE.logs.length) ? LIVE.logs : [
+    { agent:'SCOUT',  task:'Pulled 14 sources for HF-09 research brief', time:'14:32:08', model:'claude-sonnet-4.5' },
+    { agent:'SCRIBE', task:'Drafted longform · v3 · 2,140 words',        time:'14:31:54', model:'claude-opus-4' },
+    { agent:'REACH',  task:'Queued 6 social variants for review',        time:'14:31:22', model:'gpt-5-mini' },
+    { agent:'DEV',    task:'cron sync · retrying node 0x9f',             time:'14:30:47', model:'gpt-5' },
+    { agent:'ORCH',   task:'Routed directive #412 → Scribe channel',     time:'14:28:11', model:'gemini-2.5-pro' },
+  ];
+  document.getElementById('logs-list').innerHTML = LOGS.map(log => `
+    <li class="group px-4 py-2.5 rounded-2xl reference-log-card hover:bg-cream/25 transition-colors cursor-pointer">
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="font-mono text-[9px] font-bold tracking-widest shrink-0">${log.agent}</span>
+          <span class="size-1 rounded-full bg-cream/60 shrink-0"></span>
+          <span class="font-sans text-[12px] truncate">${log.task}</span>
+        </div>
+        <i data-lucide="arrow-up-right" class="size-3.5 shrink-0 opacity-70 group-hover:opacity-100 group-hover:rotate-12 transition-all"></i>
+      </div>
+      <div class="flex items-center justify-between mt-1 font-mono text-[9px] opacity-70">
+        <span>${log.time} UTC</span>
+        <span class="px-1.5 py-0.5 rounded-full bg-cream/15 border border-cream/20">${log.model}</span>
+      </div>
+    </li>`).join('');
+
+  // Fleet list
+  document.getElementById('fleet-list').innerHTML = AGENTS.map((a,i) => {
+    const badge = a.state==='EXECUTING' ? 'bg-ember text-cream'
+                : a.state==='THINKING'  ? 'bg-ink text-ember'
+                : a.state==='RETRY'     ? 'bg-cream border border-ember text-ember'
+                : 'bg-[#e1d5b6] text-ink';
+    return `<li data-agent-key="${a.name.toLowerCase()}" class="group flex items-center gap-3 p-3 rounded-2xl bg-cream border border-border hover:border-ink/40 hover:translate-x-0.5 transition-all cursor-pointer">
+      <span class="size-9 rounded-full grid place-items-center font-mono text-[10px] font-bold ${badge}">${a.initials}</span>
+      <div class="leading-tight min-w-0 flex-1">
+        <div class="flex items-center gap-2">
+          <span class="font-display text-[18px] text-ink">${a.name}</span>
+          <span class="font-mono text-[9px] uppercase tracking-widest text-muted-foreground">${a.role}</span>
+        </div>
+        <p class="font-sans text-[11px] text-muted-foreground truncate">${a.task}</p>
+      </div>
+      <div class="text-right leading-tight shrink-0">
+        <div class="font-mono text-[10px] text-muted-foreground">${a.tokens}</div>
+        <div class="font-mono text-[10px] font-semibold ${a.state==='RETRY' ? 'text-ember' : 'text-ink'}">${a.state}</div>
+      </div>
+    </li>`;
+  }).join('');
+
+  // Resolved chips
+  document.getElementById('resolved-chips').innerHTML = AGENTS.map(a =>
+    `<span class="font-mono text-[10px] px-2 py-1 rounded-full bg-cream border border-border text-ink">${a.name}</span>`).join('');
+
+  // Resolved dots
+  const emberIdx = new Set([4,5,11,12,18]);
+  let dots = '';
+  for (let i=0;i<35;i++) {
+    const e = emberIdx.has(i);
+    dots += `<span class="size-7 rounded-full transition-transform hover:scale-125 ${e?'bg-ember':'bg-ink'}" style="animation: breathe ${3+(i%5)*0.3}s ease-in-out infinite; animation-delay:${(i%7)*0.12}s"></span>`;
+  }
+  document.getElementById('resolved-dots').innerHTML = dots;
+
+  // Cost models
+  const models = (window.LIVE && LIVE.cost && LIVE.cost.length) ? LIVE.cost : [
+    { name:'claude-sonnet-4.5', cost:4280, pct:42 },
+    { name:'gpt-5-mini',        cost:2140, pct:21 },
+    { name:'text-embed-3-large',cost:1680, pct:17 },
+    { name:'gemini-2.5-pro',    cost:1250, pct:12 },
+    { name:'claude-opus-4',     cost:820,  pct:8  },
+  ];
+  document.getElementById('cost-models').innerHTML = models.map(m => `
+    <li class="group flex items-center gap-3 p-2.5 rounded-2xl bg-cream border border-border hover:border-ink/40 transition-colors">
+      <div class="w-24 shrink-0"><span class="font-mono text-[10px] text-ink truncate block">${m.name}</span></div>
+      <div class="flex-1 h-2 rounded-full bg-[#e1d5b6] overflow-hidden">
+        <div class="h-full rounded-full bg-ink group-hover:bg-ember transition-colors" style="width:${m.pct}%"></div>
+      </div>
+      <div class="w-20 text-right shrink-0">
+        <span class="font-mono text-[11px] text-ink">${m.count!=null?m.count+'⋅':''}</span>
+        <span class="font-mono text-[9px] text-muted-foreground ml-1">${m.pct}%</span>
+      </div>
+    </li>`).join('');
+
+  // Ticker
+  const items = (window.LIVE && LIVE.ticker && LIVE.ticker.length) ? LIVE.ticker : [
+    { src:'SCOUT',  msg:'pulled 14 sources · HF-09 brief' },
+    { src:'SCRIBE', msg:'longform draft v3 · 2,140 words' },
+    { src:'REACH',  msg:'queued 6 social variants for review' },
+    { src:'DEV',    msg:'cron sync · retry 1/3 on node 0x9f' },
+    { src:'ORCH',   msg:'routed directive #412 → Scribe' },
+    { src:'CORE',   msg:'throughput 1.24k req/s · nominal' },
+  ];
+  const loop = [...items, ...items];
+  document.getElementById('ticker').innerHTML = loop.map(it => `
+    <span class="flex items-center gap-3 font-mono text-[11px]">
+      <span class="size-1.5 rounded-full bg-ember animate-ticker"></span>
+      <span class="text-ember font-semibold">${it.src}</span>
+      <span class="opacity-70">${it.msg}</span>
+      <span class="opacity-30">·</span>
+    </span>`).join('');
+}
+
+/* ============== Agents page render ============== */
+let ASSIGNED = Object.fromEntries(AGENTS.map(a => [a.code, a.defaultModel]));
+
+function renderAgents() {
+  // Cards
+  document.getElementById('agent-cards').innerHTML = AGENTS.map((a,i) => {
+    const badge = a.state==='EXECUTING' ? 'bg-ember text-cream'
+                : a.state==='THINKING'  ? 'bg-ink text-ember'
+                : a.state==='RETRY'     ? 'bg-cream border border-ember text-ember'
+                : 'bg-[#e1d5b6] text-ink';
+    const pillBg = a.state==='EXECUTING' ? 'bg-ember text-cream'
+                : a.state==='THINKING'  ? 'bg-ink text-ember'
+                : a.state==='RETRY'     ? 'bg-cream border border-ember text-ember'
+                : 'bg-[#e1d5b6] text-ink';
+    const label = a.state==='EXECUTING' ? 'Executing' : a.state==='THINKING' ? 'Thinking' : a.state==='RETRY' ? 'Retry' : 'Idle';
+    const barCls = a.state==='RETRY' ? 'bg-ember'
+                 : a.state==='IDLE'  ? 'bg-[#776a55]/60'
+                 : 'bg-gradient-to-r from-ink to-ember';
+    return `<article data-agent-key="${a.name.toLowerCase()}" class="group relative overflow-hidden rounded-3xl bg-surface border border-border p-5 hover:border-ink/40 hover:-translate-y-0.5 transition-all animate-rise cursor-pointer" style="animation-delay:${i*60}ms">
+      <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-ember/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+      <div class="flex items-start justify-between">
+        <div class="flex items-center gap-3">
+          <div class="relative">
+            <div class="size-12 rounded-2xl grid place-items-center font-mono text-[12px] font-bold ${badge}">${a.initials}</div>
+            <span class="absolute -top-1 -right-1 size-2.5 rounded-full bg-ember status-pulse text-ember"></span>
+          </div>
+          <div class="leading-tight">
+            <div class="font-display text-[22px] text-ink">${a.name}</div>
+            <div class="font-mono text-[9px] uppercase tracking-widest text-muted-foreground">${a.role} · ${a.channel}</div>
+          </div>
+        </div>
+        <span class="px-2.5 py-1 rounded-full font-mono text-[9px] tracking-wider uppercase ${pillBg}">${label}</span>
+      </div>
+      <p class="font-sans text-[12px] text-muted-foreground mt-4 min-h-[2.5rem] line-clamp-2">${a.task}</p>
+      <div class="mt-3">
+        <div class="flex items-center justify-between font-mono text-[9px] uppercase tracking-wider text-muted-foreground mb-1">
+          <span>Load</span><span class="text-ink">${a.load}%</span>
+        </div>
+        <div class="h-1.5 rounded-full bg-[#e1d5b6] overflow-hidden">
+          <div class="h-full rounded-full ${barCls}" style="width:${a.load}%"></div>
+        </div>
+      </div>
+      <div class="mt-4 pt-4 border-t border-border grid grid-cols-3 gap-2">
+        <div><div class="font-mono text-[8px] uppercase tracking-widest text-muted-foreground">Tasks</div><div class="font-mono text-[12px] tabular-nums mt-0.5 text-ink">${a.tasksToday}</div></div>
+        <div><div class="font-mono text-[8px] uppercase tracking-widest text-muted-foreground">Tokens</div><div class="font-mono text-[12px] tabular-nums mt-0.5 text-ink">${a.tokens}</div></div>
+        <div><div class="font-mono text-[8px] uppercase tracking-widest text-muted-foreground">Success</div><div class="font-mono text-[12px] tabular-nums mt-0.5 text-ember font-semibold">${a.success}%</div></div>
+      </div>
+      <div class="mt-4 flex items-center gap-2 p-2.5 rounded-xl bg-ink text-cream">
+        <i data-lucide="bot" class="size-3.5 text-ember shrink-0"></i>
+        <span class="font-mono text-[10px] truncate" data-model="${a.code}">${ASSIGNED[a.code]}</span>
+        <i data-lucide="arrow-up-right" class="ml-auto size-3.5 opacity-60 group-hover:opacity-100 group-hover:rotate-12 transition-all"></i>
+      </div>
+    </article>`;
+  }).join('');
+
+  // Summary bars
+  document.getElementById('summary-bars').innerHTML = AGENTS.map(a => `
+    <li class="flex items-center gap-3">
+      <span class="font-mono text-[10px] w-20 text-ink shrink-0">${a.name}</span>
+      <div class="flex-1 h-2 rounded-full bg-[#e1d5b6] overflow-hidden">
+        <div class="h-full rounded-full bg-gradient-to-r from-ink to-ember transition-all duration-700" style="width:${(a.tasksToday/350)*100}%"></div>
+      </div>
+      <span class="font-mono text-[10px] tabular-nums text-muted-foreground w-10 text-right">${a.tasksToday}</span>
+    </li>`).join('');
+  const total = AGENTS.reduce((s,a)=>s+a.tasksToday,0);
+  const avg = (AGENTS.reduce((s,a)=>s+a.success,0)/AGENTS.length).toFixed(1);
+  document.getElementById('summary-total').textContent = total;
+  document.getElementById('summary-success').innerHTML = `${avg}<span class="text-[28px] text-muted-foreground">%</span>`;
+
+  // Model switcher
+  document.getElementById('model-counter').textContent = `${Object.keys(ASSIGNED).length} agents · ${MODELS.length} models`;
+  document.getElementById('model-rows').innerHTML = AGENTS.map(a => {
+    const m = MODELS.find(m => m.id === ASSIGNED[a.code]);
+    const opts = MODELS.map(mm => `<option value="${mm.id}" ${mm.id===ASSIGNED[a.code]?'selected':''} class="bg-ink text-cream">${mm.label}</option>`).join('');
+    return `<div class="group flex items-center gap-3 p-3 rounded-[22px] reference-log-card hover:bg-[rgb(247_240_225_/_0.08)] transition-colors">
+      <div class="size-9 rounded-xl bg-ink text-cream grid place-items-center font-mono text-[10px] font-bold shrink-0">${a.initials}</div>
+      <div class="leading-tight min-w-0 flex-1">
+        <div class="font-display text-[16px] text-cream">${a.name}</div>
+        <div class="font-mono text-[9px] uppercase tracking-widest opacity-70">${a.role}</div>
+      </div>
+      <div class="hidden md:flex flex-col items-end leading-tight shrink-0 pr-1">
+        <span class="font-mono text-[9px] uppercase tracking-widest opacity-70">${m?.vendor||''}</span>
+        <span class="font-mono text-[9px] uppercase tracking-widest opacity-70">${m?.tier||''}</span>
+      </div>
+      <div class="relative shrink-0">
+        <select data-agent="${a.code}" class="appearance-none pr-8 pl-3 h-9 rounded-xl bg-ink text-cream font-mono text-[10px] tracking-wider border border-cream/20 hover:border-cream/40 cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-cream/40">${opts}</select>
+        <i data-lucide="chevron-down" class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 size-3.5 text-cream"></i>
+      </div>
+    </div>`;
+  }).join('');
+  document.querySelectorAll('#model-rows select').forEach(sel => {
+    sel.addEventListener('change', (e) => {
+      const code = e.target.dataset.agent;
+      ASSIGNED[code] = e.target.value;
+      const el = document.querySelector(`[data-model="${code}"]`);
+      if (el) el.textContent = e.target.value;
+      renderAgents(); // refresh vendor/tier
+    });
+  });
+
+  // Heatmap
+  function heatColor(v) {
+    if (v < 0.15) return 'oklch(0.93 0.012 75)';
+    if (v < 0.35) return 'oklch(0.86 0.10 60)';
+    if (v < 0.55) return 'oklch(0.78 0.16 50)';
+    if (v < 0.75) return 'oklch(0.70 0.20 42)';
+    if (v < 0.9)  return 'oklch(0.62 0.22 38)';
+    return 'oklch(0.50 0.20 36)';
+  }
+  document.getElementById('heat-legend').innerHTML = [0.15,0.35,0.55,0.75,0.95].map(v =>
+    `<span class="size-3 rounded-sm" style="background:${heatColor(v)}"></span>`).join('');
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const hours = 24;
+  let hm = `<div class="grid" style="grid-template-columns:40px repeat(${hours},minmax(0,1fr))"><div></div>`;
+  for (let h=0;h<hours;h++) hm += `<div class="font-mono text-[8px] text-muted-foreground text-center">${h%3===0?String(h).padStart(2,'0'):''}</div>`;
+  hm += '</div>';
+  for (let d=0; d<days.length; d++) {
+    hm += `<div class="grid items-center mt-1" style="grid-template-columns:40px repeat(${hours},minmax(0,1fr))">`;
+    hm += `<span class="font-mono text-[9px] uppercase tracking-widest text-muted-foreground">${days[d]}</span>`;
+    for (let h=0; h<hours; h++) {
+      const peak=14;
+      const base = Math.max(0, 1 - Math.abs(h-peak)/12);
+      const weekend = d>=5 ? 0.4 : 1;
+      const noise = ((d*31+h*7+13)%11)/11;
+      const v = Math.min(1, base*weekend*(0.55 + noise*0.5));
+      hm += `<div class="px-[2px] py-[2px]"><div class="aspect-square w-full rounded-[4px] hover:scale-125 hover:ring-2 hover:ring-ink/30 transition-transform" style="background:${heatColor(v)}" title="${days[d]} ${String(h).padStart(2,'0')}:00 · ${Math.round(v*100)}%"></div></div>`;
+    }
+    hm += '</div>';
+  }
+  document.getElementById('heatmap').innerHTML = hm;
+
+  // Pie
+  const totalShare = AGENTS.reduce((s,a)=>s+a.share,0);
+  const radius=70, cx=110, cy=110; let cursor = -Math.PI/2;
+  const colors = ['oklch(0.16 0.012 50)','oklch(0.66 0.22 38)','oklch(0.78 0.16 50)','oklch(0.86 0.10 60)','oklch(0.45 0.018 60)'];
+  let pie = '<g class="origin-center transition-transform duration-500 hover:scale-105">';
+  const arcs = AGENTS.map((a,i)=>{
+    const pct = a.share/totalShare;
+    const start=cursor, end=cursor+pct*Math.PI*2; cursor=end;
+    const large = end-start>Math.PI?1:0;
+    const x1=cx+Math.cos(start)*radius, y1=cy+Math.sin(start)*radius;
+    const x2=cx+Math.cos(end)*radius,   y2=cy+Math.sin(end)*radius;
+    const path = `M ${cx} ${cy} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${radius} ${radius} 0 ${large} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`;
+    pie += `<path d="${path}" fill="${colors[i%5]}" stroke="oklch(0.16 0.012 50)" stroke-width="2" class="hover:opacity-80 transition-opacity" style="transform-origin:${cx}px ${cy}px; animation: rise 0.7s cubic-bezier(0.16,1,0.3,1) both; animation-delay:${i*80}ms"/>`;
+    return { a, color: colors[i%5], pct };
+  });
+  pie += `<circle cx="${cx}" cy="${cy}" r="36" fill="oklch(0.16 0.012 50)"/>
+    <circle cx="${cx}" cy="${cy}" r="36" fill="none" stroke="oklch(0.66 0.22 38 / 0.4)"/></g>
+    <text x="${cx}" y="${cy-2}" text-anchor="middle" fill="oklch(0.97 0.012 75)" font-family="Instrument Serif" font-size="26" font-style="italic">${totalShare}%</text>
+    <text x="${cx}" y="${cy+14}" text-anchor="middle" fill="oklch(0.66 0.22 38)" font-family="JetBrains Mono" font-size="7" letter-spacing="3">FLEET</text>`;
+  document.getElementById('pie').innerHTML = pie;
+  document.getElementById('pie-legend').innerHTML = arcs.map(({a,color}) => `
+    <li class="flex items-center gap-3 px-3 py-2 rounded-xl bg-cream/10 border border-cream/15 hover:bg-cream/20 transition-colors">
+      <span class="size-2.5 rounded-full shrink-0" style="background:${color}"></span>
+      <span class="font-display text-[15px]">${a.name}</span>
+      <span class="ml-auto font-mono text-[11px] tabular-nums opacity-80">${a.share}%</span>
+    </li>`).join('');
+
+  // Agent Logs (recent) — bottom of the Agents tab
+  const alogs = (window.LIVE && LIVE.agentlogs && LIVE.agentlogs.length) ? LIVE.agentlogs : [
+    { agent:'SCOUT',  task:'Pulled 14 sources for HF-09 research brief', time:'14:32:08', model:'gpt-5.5',    status:'completed' },
+    { agent:'SCRIBE', task:'Drafted longform · v3 · 2,140 words',        time:'14:31:54', model:'MiniMax-M3', status:'completed' },
+    { agent:'REACH',  task:'Queued 6 social variants for review',        time:'14:31:22', model:'MiniMax-M3', status:'completed' },
+    { agent:'DEV',    task:'cron sync · retrying node 0x9f',             time:'14:30:47', model:'gpt-5.5',    status:'failed' },
+    { agent:'ORCH',   task:'Routed directive #412 → Scribe channel',     time:'14:28:11', model:'gpt-5.5',    status:'completed' },
+  ];
+  const logTint = { ORCH:'oklch(0.66 0.22 38)', OR:'oklch(0.66 0.22 38)', SCOUT:'oklch(0.62 0.16 200)', SC:'oklch(0.62 0.16 200)', SCRIBE:'oklch(0.72 0.16 90)', SB:'oklch(0.72 0.16 90)', REACH:'oklch(0.62 0.20 340)', RE:'oklch(0.62 0.20 340)', DEV:'oklch(0.62 0.16 150)', DV:'oklch(0.62 0.16 150)' };
+  const alCount = document.getElementById('agent-logs-count'); if (alCount) alCount.textContent = alogs.length;
+  const alList = document.getElementById('agent-logs-list');
+  if (alList) alList.innerHTML = alogs.slice(0,25).map(l => {
+    const failed = (l.status||'completed')==='failed';
+    return `<li class="grid grid-cols-[76px_84px_1fr_130px_70px] gap-3 items-center px-2 py-2 border-b border-border/50 last:border-0 hover:bg-cream transition-colors">
+      <span class="font-mono text-[10px] text-muted-foreground tabular-nums">${cEsc(l.time||'')}</span>
+      <span class="font-mono text-[10px] font-bold" style="color:${logTint[(l.agent||'').toUpperCase()]||'oklch(0.45 0.018 60)'}">${cEsc(l.agent||'')}</span>
+      <span class="font-sans text-[12px] text-ink truncate">${cEsc(l.task||'')}</span>
+      <span class="font-mono text-[10px] text-muted-foreground truncate">${cEsc(l.model||'—')}</span>
+      <span class="text-right"><span class="font-mono text-[9px] uppercase px-2 py-0.5 rounded-full ${failed?'bg-red-500/12 text-red-500':'bg-ember/12 text-ember'}">${failed?'failed':'ok'}</span></span>
+    </li>`;
+  }).join('');
+
+  lucide.createIcons();
+}
+
+/* ============== Tasks page ============== */
+let TASKS = [
+  { id:'TSK-01', title:'Outline next week\u2019s video script', priority:'P1', due:'Today', tags:['content','video'], progress:0, subtasks:{total:4,done:0}, status:'todo', updated:'2m' },
+  { id:'TSK-02', title:'Reply to sponsor and collab emails', priority:'P2', due:'Tomorrow', tags:['inbox','admin'], progress:0, subtasks:{total:3,done:0}, status:'todo', updated:'15m' },
+  { id:'TSK-03', title:'Edit this week\u2019s YouTube video', priority:'P1', due:'Today', tags:['editing','video'], progress:55, subtasks:{total:6,done:3}, status:'doing', updated:'just now' },
+  { id:'TSK-04', title:'Write the launch-day newsletter', priority:'P2', due:'Thu', tags:['email','launch'], progress:40, subtasks:{total:5,done:2}, status:'doing', updated:'20m' },
+  { id:'TSK-05', title:'Publish the new blog post', priority:'P2', due:'Done', tags:['blog','publish'], progress:100, subtasks:{total:3,done:3}, status:'done', updated:'1h' },
+  { id:'TSK-06', title:'Schedule this week\u2019s social posts', priority:'P3', due:'Done', tags:['social','scheduling'], progress:100, subtasks:{total:7,done:7}, status:'done', updated:'3h' },
+];
+const COLUMNS = [
+  { id:'todo',  label:'To do',     sub:'Not started',    icon:'circle-dot' },
+  { id:'doing', label:'In progress', sub:'Working on it', icon:'timer' },
+  { id:'done',  label:'Done',      sub:'Completed',       icon:'check-circle-2' },
+];
+let TASK_QUERY = '';
+let TASK_PRIO = 'ALL';
+let DRAG_ID = null;
+let OVER_COL = null;
+
+function renderPriorityFilter() {
+  document.getElementById('priority-filter').innerHTML = ['ALL','P1','P2','P3'].map(p => {
+    const active = TASK_PRIO === p;
+    return `<button data-p="${p}" class="px-3 h-8 rounded-full font-mono text-[10px] tracking-wider uppercase transition-colors ${active?'bg-ember text-cream':'text-cream/70 hover:text-cream'}">${p==='ALL'?'All':p}</button>`;
+  }).join('');
+}
+
+function renderTasks() {
+  document.getElementById('task-count').textContent = TASKS.length;
+  document.getElementById('count-todo').textContent  = TASKS.filter(t=>t.status==='todo').length;
+  document.getElementById('count-doing').textContent = TASKS.filter(t=>t.status==='doing').length;
+  document.getElementById('count-done').textContent  = TASKS.filter(t=>t.status==='done').length;
+  renderPriorityFilter();
+
+  const q = TASK_QUERY.toLowerCase();
+  const filtered = TASKS.filter(t => (TASK_PRIO==='ALL' || t.priority===TASK_PRIO) &&
+    (q===''|| t.title.toLowerCase().includes(q) || t.id.toLowerCase().includes(q)));
+
+  const k = document.getElementById('kanban');
+  k.innerHTML = COLUMNS.map((col, ci) => {
+    const items = filtered.filter(t=>t.status===col.id);
+    const isOver = OVER_COL===col.id;
+    const headBg = col.id==='done' ? 'bg-ink text-cream'
+                 : col.id==='doing' ? 'bg-ember text-cream'
+                 : 'bg-cream border border-border text-ink';
+    return `<div data-col="${col.id}" class="col-drop rounded-[24px] border bg-cream/60 backdrop-blur-md p-4 transition-all animate-rise ${isOver?'border-ember bg-ember/8':'border-border/70'}" style="animation-delay:${0.05 + ci*0.07}s">
+      <div class="flex items-center justify-between px-1 pb-3 mb-3 border-b border-border/60">
+        <div class="flex items-center gap-2.5">
+          <div class="size-8 rounded-full grid place-items-center ${headBg}"><i data-lucide="${col.icon}" class="size-3.5" stroke-width="2"></i></div>
+          <div>
+            <div class="font-display text-[20px] leading-none">${col.label}</div>
+            <div class="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground mt-0.5">${col.sub}</div>
+          </div>
+        </div>
+        <span class="font-mono text-[11px] tabular-nums px-2.5 py-1 rounded-full bg-ink text-cream">${items.length}</span>
+      </div>
+      <div class="flex flex-col gap-3 min-h-[200px]">
+        ${items.map((t,i)=>cardHTML(t,i)).join('')}
+        ${items.length===0 ? `<div class="rounded-2xl border border-dashed border-border/80 p-6 grid place-items-center text-center">
+          <i data-lucide="sparkles" class="size-4 text-muted-foreground mb-2"></i>
+          <div class="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Drop a mission here</div>
+        </div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  // wire drag
+  document.querySelectorAll('.col-drop').forEach(col => {
+    col.addEventListener('dragover', (e) => { e.preventDefault(); if (OVER_COL!==col.dataset.col){ OVER_COL=col.dataset.col; renderTasks(); } });
+    col.addEventListener('dragleave', () => { if (OVER_COL===col.dataset.col){ OVER_COL=null; renderTasks(); } });
+    col.addEventListener('drop', () => {
+      if (DRAG_ID) {
+        const t = TASKS.find(x=>x.id===DRAG_ID);
+        if (t) { t.status = col.dataset.col; t.progress = t.status==='done'?100:t.status==='todo'?0:(t.progress||25); t.updated='just now';
+          if (t.boardId) { const bm={todo:'pending',doing:'in_progress',done:'done'};
+            fetch('/api/board/update?id='+t.boardId,{method:'POST',body:JSON.stringify({status:bm[t.status]})}); } }
+      }
+      DRAG_ID = null; OVER_COL = null; renderTasks();
+    });
+  });
+  document.querySelectorAll('[data-task]').forEach(el => {
+    el.addEventListener('dragstart', () => { DRAG_ID = el.dataset.task; });
+    el.addEventListener('dragend', () => { DRAG_ID=null; OVER_COL=null; renderTasks(); });
+  });
+  lucide.createIcons();
+}
+
+function cardHTML(t, index) {
+  const prio = t.priority==='P1' ? { bg:'bg-ember', fg:'text-cream', label:'P1 · Critical' }
+            : t.priority==='P2' ? { bg:'bg-ink',   fg:'text-cream', label:'P2 · High' }
+            : { bg:'bg-cream border border-border', fg:'text-ink', label:'P3 · Normal' };
+  const dueIcon = t.status==='done' ? `<i data-lucide="check-circle-2" class="size-3 text-ink"></i>` :
+                  t.priority==='P1' ? `<i data-lucide="flame" class="size-3 text-ember"></i>` :
+                  `<i data-lucide="clock" class="size-3"></i>`;
+  const dragging = DRAG_ID===t.id;
+  return `<article draggable="true" data-task="${t.id}" class="group relative rounded-2xl bg-cream border border-border/80 p-4 cursor-grab active:cursor-grabbing transition-all duration-300 hover:-translate-y-0.5 hover:border-ink/30 animate-rise ${dragging?'opacity-40 scale-[0.98]':''}" style="animation-delay:${0.08+index*0.04}s">
+    <span class="absolute left-0 top-4 bottom-4 w-[3px] rounded-r-full ${t.priority==='P1'?'bg-ember':t.priority==='P2'?'bg-ink':'bg-border'}"></span>
+    <div class="flex items-start justify-between gap-3 pl-2">
+      <div class="flex items-center gap-2 font-mono text-[10px] tracking-wider text-muted-foreground">
+        <i data-lucide="grip-vertical" class="size-3.5 opacity-40 group-hover:opacity-80 transition"></i>
+        <span class="tabular-nums">${t.id}</span>
+      </div>
+      <span class="px-2 py-0.5 rounded-full font-mono text-[9px] uppercase tracking-wider ${prio.bg} ${prio.fg}">${prio.label}</span>
+    </div>
+    <h3 class="font-display text-[19px] leading-[1.15] mt-2 pl-2 tracking-tight">${t.title}</h3>
+    <div class="flex flex-wrap gap-1.5 mt-3 pl-2">
+      ${t.tags.map(tag=>`<span class="px-2 py-0.5 rounded-full bg-surface border border-border/60 font-mono text-[9px] tracking-wider uppercase text-muted-foreground">#${tag}</span>`).join('')}
+    </div>
+    ${t.status!=='todo' ? `<div class="mt-3 pl-2">
+      <div class="flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground mb-1.5">
+        <span>${t.subtasks.done}/${t.subtasks.total} subtasks</span><span class="tabular-nums text-ink">${t.progress}%</span>
+      </div>
+      <div class="h-1.5 rounded-full bg-surface-2 overflow-hidden">
+        <div class="h-full rounded-full ${t.status==='done'?'bg-ink':'bg-ember'} transition-all" style="width:${t.progress}%"></div>
+      </div>
+    </div>` : ''}
+    <div class="flex items-center justify-between mt-4 pl-2 pt-3 border-t border-border/60">
+      <div class="flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground">${dueIcon}<span class="tabular-nums">${t.due}</span></div>
+      <button data-del="${t.id}" title="Delete mission" class="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-ember transition font-mono text-[13px] leading-none">✕</button>
+    </div>
+  </article>`;
+}
+
+document.addEventListener('input', (e) => {
+  if (e.target.id === 'task-search') { TASK_QUERY = e.target.value; renderTasks(); }
+});
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('#priority-filter button');
+  if (b) { TASK_PRIO = b.dataset.p; renderTasks(); }
+});
+
+/* ============== OFFICE empire (three.js) ============== */
+const EMBER='#e25822', EMBER_SOFT='#f59e6b', INK='#1a1410', INK_2='#241a13', SPOTLIGHT='#00e5ff';
+
+const HQ = { code:'OR', name:'Hermes HQ', role:'Orchestrator', task:'Routing directive #412 · briefing Scribe', model:'Claude Sonnet 4.5',
+  state:'THINKING', load:48, tokens:'612k', latency:'92ms', success:99.4, tasksToday:184,
+  position:[0,0,0], size:[3.6,6.4,3.6], floors:15, windowCols:6, silhouette:'stepped', accent:EMBER, monument:'conductor' };
+
+const AGENTS_3D = [
+  { code:'SC', name:'Scout',  role:'Research',    task:'Sweeping 14 sources for HF-09 brief', model:'Gemini 2.5 Pro', state:'EXECUTING', load:72, tokens:'1.24M', latency:'14ms',  success:99.9, tasksToday:312, position:[-7.5,0,-5], size:[2.6,5.6,2.6], floors:14, windowCols:4, silhouette:'tower', accent:SPOTLIGHT, monument:'scout' },
+  { code:'SB', name:'Scribe', role:'Writing',     task:'Drafting longform · 1840 / 2400 words', model:'Claude Opus 4', state:'EXECUTING', load:61, tokens:'450k', latency:'118ms', success:98.7, tasksToday:142, position:[7.5,0,-5], size:[3.2,4.4,2.4], floors:10, windowCols:5, silhouette:'slab',  accent:EMBER, monument:'scribe' },
+  { code:'RE', name:'Reach',  role:'Marketing',   task:'Awaiting Scribe handoff · last cycle 4m 12s', model:'GPT-5 Mini', state:'IDLE',   load:6,  tokens:'0',     latency:'—',     success:99.1, tasksToday:96,  position:[-7.5,0,5], size:[2.8,4.8,2.8], floors:12, windowCols:4, silhouette:'twin',  accent:EMBER, monument:'herald' },
+  { code:'DV', name:'Dev',    role:'Engineering', task:'cron sync · node 0x9f timeout · retry 1/3',  model:'GPT-5',     state:'RETRY',   load:18, tokens:'92k',   latency:'—',     success:97.2, tasksToday:68,  position:[7.5,0,5],  size:[2.6,6.4,2.6], floors:16, windowCols:4, silhouette:'tower', accent:EMBER, monument:'smith' },
+];
+const ALL_BUILDINGS = [HQ, ...AGENTS_3D];
+
+let empireInited = false;
+let officeSelected = null;
+let officeHovered = null;
+let empireApi = null;
+
+function renderLegend() {
+  document.getElementById('empire-legend').innerHTML = ALL_BUILDINGS.map(b => {
+    const sel = officeSelected===b.code;
+    const dot = b.state==='EXECUTING' ? 'bg-ember animate-breathe'
+             : b.state==='THINKING'  ? 'bg-ember-soft'
+             : b.state==='RETRY'     ? 'bg-ember animate-ticker'
+             : 'bg-cream/30';
+    return `<button data-bcode="${b.code}" class="text-left rounded-[22px] p-3 reference-log-card transition-all ${sel?'bg-[rgb(247_240_225_/_0.08)]':'hover:bg-[rgb(247_240_225_/_0.08)]'}">
+      <div class="flex items-center justify-between">
+        <span class="font-mono text-[9px] tracking-[0.22em] uppercase text-cream/55">${b.code==='OR'?'HQ':b.role}</span>
+        <span class="size-2 rounded-full ${dot}"></span>
+      </div>
+      <div class="font-display text-[20px] mt-1 leading-none">${b.name}</div>
+      <div class="font-mono text-[10px] mt-1.5 text-cream/55 truncate">${b.model}</div>
+    </button>`;
+  }).join('');
+  document.querySelectorAll('[data-bcode]').forEach(btn => {
+    btn.addEventListener('click', () => selectBuilding(btn.dataset.bcode));
+  });
+}
+
+function renderDossier() {
+  const mount = document.getElementById('dossier-mount');
+  if (!officeSelected) { mount.innerHTML=''; return; }
+  const a = ALL_BUILDINGS.find(b=>b.code===officeSelected);
+  if (!a) return;
+  const isHQ = a.code==='OR';
+  mount.innerHTML = `<div class="absolute top-4 right-4 z-30 w-[320px] max-w-[calc(100%-2rem)] rounded-2xl bg-ink/95 backdrop-blur-xl border border-ember/30 p-5 text-cream shadow-2xl animate-rise">
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <div class="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-ember">
+          <i data-lucide="flame" class="size-3"></i> ${isHQ?'Orchestrator · HQ':`${a.role} · Specialist`}
+        </div>
+        <div class="font-display text-[28px] leading-none mt-1.5">${a.name}</div>
+      </div>
+      <button id="dossier-close" class="size-8 rounded-full bg-cream/5 border border-cream/10 grid place-items-center hover:bg-ember/20 hover:border-ember/40 transition">
+        <i data-lucide="x" class="size-3.5"></i>
+      </button>
+    </div>
+    <div class="mt-4 rounded-xl bg-cream/5 border border-cream/10 p-3">
+      <div class="font-mono text-[9px] tracking-[0.2em] uppercase text-cream/55">Current task</div>
+      <div class="font-sans text-[13px] leading-snug mt-1">${a.task}</div>
+    </div>
+    <div class="mt-3 grid grid-cols-2 gap-2">
+      ${[['Load',a.load+'%','zap'],['Tokens 24h',a.tokens,'sparkles'],['Latency',a.latency,'cpu'],['Success',a.success+'%','flame']].map(([k,v,icon])=>`
+        <div class="rounded-xl bg-cream/5 border border-cream/10 p-3">
+          <div class="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-wider text-cream/55"><i data-lucide="${icon}" class="size-3"></i> ${k}</div>
+          <div class="font-display text-[20px] tabular-nums mt-1 leading-none">${v}</div>
+        </div>`).join('')}
+    </div>
+    <div class="mt-3 pt-3 border-t border-cream/10 flex items-center justify-between font-mono text-[10px] uppercase tracking-wider">
+      <span class="text-cream/55">Model</span><span class="text-ember">${a.model}</span>
+    </div>
+    <div class="flex items-center justify-between font-mono text-[10px] uppercase tracking-wider mt-1.5">
+      <span class="text-cream/55">State</span><span class="text-cream">${a.state}</span>
+    </div>
+    <div class="flex items-center justify-between font-mono text-[10px] uppercase tracking-wider mt-1.5">
+      <span class="text-cream/55">Tasks today</span><span class="text-cream tabular-nums">${a.tasksToday}</span>
+    </div>
+  </div>`;
+  document.getElementById('dossier-close').addEventListener('click', () => selectBuilding(null));
+  lucide.createIcons();
+}
+
+function selectBuilding(code) {
+  officeSelected = code;
+  if (empireApi) empireApi.setSelected(code);
+  renderLegend();
+  renderDossier();
+}
+
+async function initEmpire() {
+  if (empireInited) { renderLegend(); renderDossier(); return; }
+  empireInited = true;
+  renderLegend();
+
+  const THREE = await import('three');
+  const { OrbitControls } = await import('three/addons/controls/OrbitControls.js');
+
+  const wrap = document.getElementById('empire-canvas-wrap');
+  const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.6));
+  renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.15;
+  wrap.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color('#120c08');
+  scene.fog = new THREE.Fog('#120c08', 22, 55);
+
+  const camera = new THREE.PerspectiveCamera(38, wrap.clientWidth/wrap.clientHeight, 0.1, 200);
+  camera.position.set(16, 12, 16);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enablePan = false; controls.enableDamping = true; controls.dampingFactor = 0.08;
+  controls.minDistance=10; controls.maxDistance=32;
+  controls.minPolarAngle=Math.PI/6; controls.maxPolarAngle=Math.PI/2.25;
+  controls.autoRotate = true; controls.autoRotateSpeed = 0.45;
+
+  // Lights
+  scene.add(new THREE.AmbientLight('#f3c79a', 0.35));
+  const d1 = new THREE.DirectionalLight('#f59e6b', 0.9); d1.position.set(-12,14,6); scene.add(d1);
+  const d2 = new THREE.DirectionalLight('#8a5a3a', 0.35); d2.position.set(10,8,-10); scene.add(d2);
+
+  // Sky dome
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(80,32,32), new THREE.MeshBasicMaterial({ side:THREE.BackSide, color:'#1a1410' }));
+  scene.add(sky);
+  const horizon = new THREE.Mesh(new THREE.SphereGeometry(70,32,16,0,Math.PI*2, Math.PI*0.4, Math.PI*0.18),
+    new THREE.MeshBasicMaterial({ side:THREE.BackSide, color:EMBER, toneMapped:false, transparent:true, opacity:0.35 }));
+  horizon.position.y = -2; scene.add(horizon);
+
+  // Plaza
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(60,60), new THREE.MeshStandardMaterial({ color:INK_2, roughness:0.95 }));
+  ground.rotation.x = -Math.PI/2; scene.add(ground);
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(6,64), new THREE.MeshStandardMaterial({ color:'#2a1f17', roughness:0.8 }));
+  disc.rotation.x = -Math.PI/2; disc.position.y = 0.005; scene.add(disc);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(5.6,5.85,96), new THREE.MeshBasicMaterial({ color:EMBER, toneMapped:false, transparent:true, opacity:0.55 }));
+  ring.rotation.x = -Math.PI/2; ring.position.y = 0.012; scene.add(ring);
+
+  // Streets + lamps + cars
+  const lampMat = new THREE.MeshStandardMaterial({ color:INK_2 });
+  const lampGlow = new THREE.MeshStandardMaterial({ color:'#000', emissive:new THREE.Color(EMBER_SOFT), emissiveIntensity:3.2, toneMapped:false });
+  const carMat   = new THREE.MeshStandardMaterial({ color:'#000', emissive:new THREE.Color(EMBER),      emissiveIntensity:3.5, toneMapped:false });
+  const cars = [];
+  AGENTS_3D.forEach((a, i) => {
+    const dx=a.position[0], dz=a.position[2];
+    const len = Math.hypot(dx,dz);
+    const angle = Math.atan2(dx,dz);
+    const street = new THREE.Mesh(new THREE.PlaneGeometry(1.2,len), new THREE.MeshStandardMaterial({ color:'#1f1611', roughness:0.9 }));
+    street.rotation.x = -Math.PI/2; street.rotation.z = -angle; street.position.set(dx/2, 0.008, dz/2);
+    scene.add(street);
+    [0.35,0.7].forEach((t,j) => {
+      const g = new THREE.Group();
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,1.2,8), lampMat); post.position.y=0.6; g.add(post);
+      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.09,12,12), lampGlow); bulb.position.y=1.25; g.add(bulb);
+      const pl = new THREE.PointLight(EMBER_SOFT, 1.6, 4); pl.position.y=1.25; g.add(pl);
+      g.position.set(dx*t+0.7, 0, dz*t);
+      scene.add(g);
+    });
+    const from = new THREE.Vector3(dx*0.55, 0.08, dz*0.55);
+    const center = new THREE.Vector3(0,0.08,0);
+    const to = new THREE.Vector3(dx*0.1, 0.08, dz*0.1);
+    const end = new THREE.Vector3(dx, 0.08, dz);
+    [[from,center],[to,end]].forEach((path, k) => {
+      const car = new THREE.Mesh(new THREE.BoxGeometry(0.22,0.08,0.12), carMat);
+      car.position.copy(path[0]);
+      car.userData = { path, speed: 0.18 + ((i*2+k)%3)*0.05, offset: (i*2+k)*0.13 };
+      scene.add(car); cars.push(car);
+    });
+  });
+
+
+  // Floating clouds — parity with the React Three Fiber scene.
+  const clouds = [];
+  function addCloud(pos, radius, color, opacity, floatIntensity, speed) {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(radius,16,16), new THREE.MeshBasicMaterial({ color, transparent:true, opacity }));
+    m.position.set(...pos);
+    m.userData = { baseY: pos[1], floatIntensity, speed };
+    scene.add(m); clouds.push(m);
+  }
+  addCloud([-10,10,-8], 2.2, '#2a1d14', 0.6, 1.2, 0.6);
+  addCloud([11,12,-6], 3.0, '#1f160f', 0.55, 1.4, 0.5);
+
+  // Buildings
+  const buildings = [];
+  function buildShell(agent) {
+    const [w,h,d] = agent.size;
+    const g = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({ color:INK, roughness:0.55, metalness:0.25 });
+    const trim = new THREE.MeshStandardMaterial({ color:INK_2, emissive:new THREE.Color(agent.accent), emissiveIntensity:0.4, toneMapped:false });
+
+    if (agent.silhouette==='stepped') {
+      const m1 = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat); m1.position.y=h/2; g.add(m1);
+      const m2 = new THREE.Mesh(new THREE.BoxGeometry(w*0.7,0.7,d*0.7), mat); m2.position.y=h+0.35; g.add(m2);
+      const m3 = new THREE.Mesh(new THREE.BoxGeometry(w*0.45,0.5,d*0.45), mat); m3.position.y=h+0.8; g.add(m3);
+      const trimMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.95,1.0,0.1,24), new THREE.MeshStandardMaterial({ color:INK_2, emissive:new THREE.Color(agent.accent), emissiveIntensity:0.5, toneMapped:false }));
+      trimMesh.position.y = h+1.1; g.add(trimMesh);
+    } else if (agent.silhouette==='twin') {
+      const m1 = new THREE.Mesh(new THREE.BoxGeometry(w*0.45,h,d), mat); m1.position.set(-w*0.27, h/2, 0); g.add(m1);
+      const m2 = new THREE.Mesh(new THREE.BoxGeometry(w*0.45,h+1.2,d), mat); m2.position.set(w*0.27, h/2+0.6, 0); g.add(m2);
+      const bridge = new THREE.Mesh(new THREE.BoxGeometry(w*0.7,0.18,d*0.5), new THREE.MeshStandardMaterial({ color:INK_2, emissive:new THREE.Color(agent.accent), emissiveIntensity:0.4, toneMapped:false }));
+      bridge.position.y = h*0.55; g.add(bridge);
+    } else if (agent.silhouette==='slab') {
+      const m1 = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat); m1.position.y=h/2; g.add(m1);
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(w+0.2,0.3,d+0.2), new THREE.MeshStandardMaterial({ color:INK_2, emissive:new THREE.Color(agent.accent), emissiveIntensity:0.35, toneMapped:false }));
+      cap.position.y = h+0.15; g.add(cap);
+    } else { // tower
+      const m1 = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat); m1.position.y=h/2; g.add(m1);
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(w+0.15,0.16,d+0.15), trim); cap.position.y=h+0.08; g.add(cap);
+    }
+    return g;
+  }
+
+  function buildWindows(agent) {
+    const [w,h,d] = agent.size;
+    const yStep = h/(agent.floors+1);
+    const yStart = (agent.silhouette==='stepped') ? yStep : (-h/2 + yStep);  // HQ (stepped): fill windows up the full body
+    const list = [];
+    const xStepFB = w/(agent.windowCols+1);
+    for (let f=0; f<agent.floors; f++) for (let c=0; c<agent.windowCols; c++) {
+      const x = -w/2 + (c+1)*xStepFB;
+      const y = yStart + f*yStep;
+      list.push({ pos:new THREE.Vector3(x,y,d/2+0.01), rot:new THREE.Euler(0,0,0), seed:Math.random() });
+      list.push({ pos:new THREE.Vector3(x,y,-d/2-0.01), rot:new THREE.Euler(0,Math.PI,0), seed:Math.random() });
+    }
+    const sideCols = Math.max(2, Math.round(agent.windowCols*(d/Math.max(w,0.001))));
+    const zStepLR = d/(sideCols+1);
+    for (let f=0; f<agent.floors; f++) for (let c=0; c<sideCols; c++) {
+      const z = -d/2 + (c+1)*zStepLR;
+      const y = yStart + f*yStep;
+      list.push({ pos:new THREE.Vector3(w/2+0.01,y,z), rot:new THREE.Euler(0,Math.PI/2,0), seed:Math.random() });
+      list.push({ pos:new THREE.Vector3(-w/2-0.01,y,z), rot:new THREE.Euler(0,-Math.PI/2,0), seed:Math.random() });
+    }
+    const accentColor = new THREE.Color(agent.accent);
+    const mesh = new THREE.InstancedMesh(
+      new THREE.PlaneGeometry(1,1),
+      new THREE.MeshStandardMaterial({ color:'#000', emissive:accentColor, emissiveIntensity:1.8, toneMapped:false, side:THREE.DoubleSide }),
+      list.length
+    );
+    mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(list.length*3), 3);
+    mesh.userData = { instances:list, accent:accentColor, dim:accentColor.clone().multiplyScalar(0.2), state:agent.state };
+    return mesh;
+  }
+
+  function stateIntensity(state, seed, t) {
+    switch (state) {
+      case 'EXECUTING': return 0.85 + 0.15*Math.sin(t*2 + seed*6.28);
+      case 'THINKING': { const on=(seed*17)%1>0.4?1:0; return on*(0.55+0.25*Math.sin(t*1.1+seed*4)); }
+      case 'IDLE':     { const on=(seed*31)%1>0.82?1:0; return on*0.35; }
+      case 'RETRY':    { const flick=Math.sin(t*18+seed*9); const on=(seed*13)%1>0.55?1:0; return on*(0.5+0.5*(flick>0?1:0.2)); }
+    }
+    return 0;
+  }
+
+  // Monuments — simplified pedestals + figures (no animation per-tick beyond rotation)
+  function buildMonument(agent) {
+    const g = new THREE.Group();
+    const STONE = '#e8d8b4', STONE_DARK='#a8946f', PLINTH='#3a2b20', PLINTH_TRIM='#5a4232';
+    const accent = new THREE.Color(agent.accent);
+    const stoneMat = new THREE.MeshStandardMaterial({ color:STONE, roughness:0.7, metalness:0.05 });
+    const stoneDark = new THREE.MeshStandardMaterial({ color:STONE_DARK, roughness:0.8 });
+    const glow = (i=3.2) => new THREE.MeshStandardMaterial({ color:'#000', emissive:accent, emissiveIntensity:i, toneMapped:false });
+
+    // Pedestal
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.85,0.95,0.24,24), new THREE.MeshStandardMaterial({ color:PLINTH, roughness:0.85 }));
+    base.position.y = 0.12; g.add(base);
+    const trim = new THREE.Mesh(new THREE.TorusGeometry(0.82,0.025,12,48), new THREE.MeshStandardMaterial({ color:'#000', emissive:accent, emissiveIntensity:2.6, toneMapped:false }));
+    trim.position.y = 0.26; trim.rotation.x = Math.PI/2; g.add(trim);
+    const slab = new THREE.Mesh(new THREE.CylinderGeometry(0.78,0.78,0.08,24), new THREE.MeshStandardMaterial({ color:PLINTH_TRIM, roughness:0.8 }));
+    slab.position.y = 0.32; g.add(slab);
+    const pl = new THREE.PointLight(agent.accent, 2.4, 4.5); pl.position.y=0.55; g.add(pl);
+
+    const fig = new THREE.Group();
+    if (agent.monument==='conductor') {
+      fig.add((()=>{const _m=new THREE.Mesh(new THREE.ConeGeometry(0.42,0.85,16), stoneMat); _m.position.set(0,0.72,0); return _m;})());
+      fig.add((()=>{const _m=new THREE.Mesh(new THREE.SphereGeometry(0.26,16,16), stoneMat); _m.position.set(0,1.18,0); return _m;})());
+      fig.add((()=>{const _m=new THREE.Mesh(new THREE.SphereGeometry(0.20,16,16), stoneMat); _m.position.set(0,1.50,0); return _m;})());
+      const crown = new THREE.Mesh(new THREE.TorusGeometry(0.18,0.03,8,24), glow(3));
+      crown.position.set(0,1.66,0); crown.rotation.x = Math.PI/2; fig.add(crown);
+      const arm1 = new THREE.Mesh(new THREE.CapsuleGeometry(0.07,0.4,6,12), stoneMat); arm1.position.set(-0.28,1.3,0); arm1.rotation.z=0.9; fig.add(arm1);
+      const arm2 = new THREE.Mesh(new THREE.CapsuleGeometry(0.07,0.4,6,12), stoneMat); arm2.position.set(0.28,1.3,0); arm2.rotation.z=-0.9; fig.add(arm2);
+      const baton = new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,0.6,8), glow(4)); baton.position.set(0.73,1.62,0); baton.rotation.z=-0.4; fig.add(baton);
+      const tip = new THREE.Mesh(new THREE.SphereGeometry(0.07,12,12), glow(5)); tip.position.set(0.9,1.75,0); fig.add(tip);
+    } else if (agent.monument==='scout') {
+      fig.add((()=>{const _m=new THREE.Mesh(new THREE.SphereGeometry(0.32,16,16), stoneMat); _m.position.set(0,0.68,0); return _m;})());
+      fig.add((()=>{const _m=new THREE.Mesh(new THREE.SphereGeometry(0.20,16,16), stoneMat); _m.position.set(0.12,1.02,0.05); return _m;})());
+      const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.28,0.04,16), stoneDark); brim.position.set(0.12,1.18,0.05); fig.add(brim);
+      fig.add((()=>{const _m=new THREE.Mesh(new THREE.ConeGeometry(0.18,0.18,16), stoneDark); _m.position.set(0.12,1.24,0.05); return _m;})());
+      const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.06,0.32,6,12), stoneMat); arm.position.set(0.32,1.0,0.2); arm.rotation.z=-0.5; fig.add(arm);
+      const spy = new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.08,0.38,16), glow(4.5)); spy.position.set(0.5,1.05,0.32); spy.rotation.set(0,0.4,Math.PI/2); fig.add(spy);
+      const lens= new THREE.Mesh(new THREE.SphereGeometry(0.08,12,12), glow(5)); lens.position.set(0.66,1.07,0.4); fig.add(lens);
+    } else if (agent.monument==='scribe') {
+      fig.add((()=>{const _m=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.55,0.55,20), stoneMat); _m.position.set(0,0.6,0); return _m;})());
+      fig.add((()=>{const _m=new THREE.Mesh(new THREE.SphereGeometry(0.32,16,16), stoneMat); _m.position.set(0,1.05,-0.05); return _m;})());
+      fig.add((()=>{const _m=new THREE.Mesh(new THREE.SphereGeometry(0.22,16,16), stoneMat); _m.position.set(0,1.42,-0.05); return _m;})());
+      const book = new THREE.Group(); book.position.set(0,0.95,0.32); book.rotation.x=-0.4;
+      book.add(new THREE.Mesh(new THREE.BoxGeometry(0.55,0.06,0.4), stoneDark));
+      book.add((()=>{const _m=new THREE.Mesh(new THREE.BoxGeometry(0.52,0.02,0.38), glow(3.4)); _m.position.set(0,0.04,0); return _m;})());
+      fig.add(book);
+      const quill = new THREE.Mesh(new THREE.ConeGeometry(0.025,0.4,8), glow(3)); quill.position.set(0.35,1.18,0.35); quill.rotation.z=-0.6; fig.add(quill);
+    } else if (agent.monument==='herald') {
+      fig.add((()=>{const _m=new THREE.Mesh(new THREE.ConeGeometry(0.38,0.85,16), stoneMat); _m.position.set(0,0.72,0); return _m;})());
+      fig.add((()=>{const _m=new THREE.Mesh(new THREE.SphereGeometry(0.26,16,16), stoneMat); _m.position.set(0,1.18,0); return _m;})());
+      fig.add((()=>{const _m=new THREE.Mesh(new THREE.SphereGeometry(0.20,16,16), stoneMat); _m.position.set(0,1.5,0); return _m;})());
+      const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.07,0.35,6,12), stoneMat); arm.position.set(0.18,1.32,0.18); arm.rotation.set(-0.6,0.4,0); fig.add(arm);
+      const trumpet = new THREE.Group(); trumpet.position.set(0.25,1.46,0.4); trumpet.rotation.set(-Math.PI/2.6,0,-0.2);
+      trumpet.add(new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.55,12), glow(4)));
+      trumpet.add((()=>{const _m=new THREE.Mesh(new THREE.ConeGeometry(0.18,0.24,16,1,true), glow(5)); _m.position.set(0,0.36,0); return _m;})());
+      fig.add(trumpet);
+    } else if (agent.monument==='smith') {
+      fig.add((()=>{const _m=new THREE.Mesh(new THREE.ConeGeometry(0.4,0.85,16), stoneMat); _m.position.set(0,0.7,0); return _m;})());
+      fig.add((()=>{const _m=new THREE.Mesh(new THREE.SphereGeometry(0.28,16,16), stoneMat); _m.position.set(0,1.2,0); return _m;})());
+      fig.add((()=>{const _m=new THREE.Mesh(new THREE.SphereGeometry(0.22,16,16), stoneMat); _m.position.set(0,1.55,0); return _m;})());
+      const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.07,0.45,6,12), stoneMat); arm.position.set(-0.3,1.15,0); arm.rotation.z=0.3; fig.add(arm);
+      const arm2= new THREE.Mesh(new THREE.CapsuleGeometry(0.07,0.5,6,12), stoneMat); arm2.position.set(0.18,1.5,0); arm2.rotation.z=-1.4; fig.add(arm2);
+      const wrench = new THREE.Group(); wrench.position.set(0.32,2.0,0);
+      wrench.add(new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.55,10), glow(4)));
+      wrench.add((()=>{const _m=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.12,0.08), glow(5)); _m.position.set(0,0.32,0); return _m;})());
+      fig.add(wrench);
+    }
+    g.add(fig);
+    return g;
+  }
+
+  function monumentMountY(a) {
+    const h = a.size[1];
+    return ({ stepped:h+1.15, twin:h+1.2, slab:h+0.3, tower:h+0.16 })[a.silhouette];
+  }
+  function monumentMountX(a) { return a.silhouette==='twin' ? a.size[0]*0.27 : 0; }
+
+  // Labels — DOM overlay (project 3D → 2D)
+  const labelLayer = document.createElement('div');
+  labelLayer.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:5;';
+  wrap.appendChild(labelLayer);
+
+  ALL_BUILDINGS.forEach(agent => {
+    const root = new THREE.Group();
+    root.position.set(...agent.position);
+    const shell = buildShell(agent);
+    const windows = buildWindows(agent);
+    const monument = buildMonument(agent);
+    monument.position.set(monumentMountX(agent), monumentMountY(agent), 0);
+
+    // selection halo
+    const halo = new THREE.Mesh(
+      new THREE.RingGeometry(Math.max(agent.size[0],agent.size[2])*0.7, Math.max(agent.size[0],agent.size[2])*0.85, 64),
+      new THREE.MeshBasicMaterial({ color:agent.accent, transparent:true, opacity:0.85, toneMapped:false })
+    );
+    halo.rotation.x = -Math.PI/2; halo.position.y = 0.02; halo.visible = false;
+
+    const inner = new THREE.Group();
+    inner.add(shell); inner.add(windows); inner.add(monument);
+    root.add(inner); root.add(halo);
+
+    // Label DOM
+    const label = document.createElement('div');
+    label.className = 'pointer-events-none select-none whitespace-nowrap text-center absolute -translate-x-1/2 -translate-y-1/2';
+    label.innerHTML = `<div class="font-mono text-[9px] tracking-[0.25em] uppercase text-cream/60">${agent.code==='OR'?'Hermes · HQ':agent.role}</div>
+      <div class="font-display text-cream text-[16px] leading-none mt-0.5" style="text-shadow:0 2px 8px rgba(0,0,0,0.6)">${agent.name}</div>`;
+    labelLayer.appendChild(label);
+
+    // collect ONLY the small accent pieces (caps/trims/monument glow) so they recolor
+    // live (active=blue / idle=orange). EXCLUDE the dark body shell (emissive black) and
+    // the windows mesh (handled separately) — recoloring the body makes it a solid block.
+    const accentMats = [];
+    root.traverse(o => { if (o === windows) return; const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
+      ms.forEach(m => { if (m && m.emissive && m.emissive.getHex() !== 0) accentMats.push(m); }); });
+    buildings.push({ agent, root, inner, windows, halo, label, accentMats });
+    scene.add(root);
+  });
+  // Live glow colors: SPOTLIGHT (blue) = agent active, EMBER (orange) = idle
+  const WORK_COL = new THREE.Color(SPOTLIGHT), IDLE_COL = new THREE.Color(EMBER);
+  const CODE_TO_PROFILE = { OR:'orchestrator', SC:'scout', SB:'scribe', RE:'reach', DV:'dev' };
+
+  // Click / hover (raycast)
+  const ray = new THREE.Raycaster();
+  const mouse = new THREE.Vector2();
+  function onPointer(e) {
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((e.clientX-rect.left)/rect.width)*2-1;
+    mouse.y = -((e.clientY-rect.top)/rect.height)*2+1;
+    ray.setFromCamera(mouse, camera);
+    const meshes = buildings.flatMap(b => b.inner.children);
+    const hit = ray.intersectObjects(meshes, true)[0];
+    if (hit) {
+      let o = hit.object; while (o && !o.parent?.parent?.userData?.bcode && o.parent) o = o.parent;
+      const found = buildings.find(b => b.inner === o || b.inner.children.includes(o) || b.inner.children.some(c => c.children?.includes?.(o)));
+      if (found) return found;
+    }
+    return null;
+  }
+  renderer.domElement.addEventListener('click', (e) => {
+    const b = onPointer(e);
+    if (b) selectBuilding(b.agent.code);
+  });
+  renderer.domElement.addEventListener('pointermove', (e) => {
+    const b = onPointer(e);
+    officeHovered = b ? b.agent.code : null;
+    renderer.domElement.style.cursor = b ? 'pointer' : 'default';
+  });
+
+  empireApi = {
+    setSelected(code){ /* updated in animate */ },
+    colors(){ return buildings.map(b => ({ code:b.agent.code, accent:'#'+b.windows.userData.accent.getHexString(), halo:'#'+b.halo.material.color.getHexString() })); },
+  };
+
+
+  // remove loading
+  document.getElementById('empire-loading').remove();
+
+  // Resize
+  function resize() {
+    const w = wrap.clientWidth, h = wrap.clientHeight;
+    renderer.setSize(w,h); camera.aspect = w/h; camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+
+  // Animate
+  const tmpObj = new THREE.Object3D();
+  const tmpCol = new THREE.Color();
+  const vec = new THREE.Vector3();
+  const clock = new THREE.Clock();
+  function animate() {
+    const t = clock.getElapsedTime();
+    // cars
+    cars.forEach(c => {
+      const u = ((t * c.userData.speed + c.userData.offset) % 1);
+      const tt = u<0.5 ? u*2 : (1-u)*2;
+      c.position.lerpVectors(c.userData.path[0], c.userData.path[1], tt);
+    });
+    // floating clouds
+    clouds.forEach(c => { c.position.y = c.userData.baseY + Math.sin(t * c.userData.speed) * c.userData.floatIntensity; c.rotation.y += 0.0008; });
+    // buildings
+    buildings.forEach(b => {
+      const sel = officeSelected === b.agent.code;
+      const hov = officeHovered === b.agent.code;
+      const target = (sel||hov) ? 0.35 : 0;
+      b.inner.position.y += (target - b.inner.position.y) * 0.12;
+      b.halo.visible = sel || hov;
+
+      // Live glow: blue when the agent is active, orange when idle. Recolors the lit
+      // windows + the accent caps/trims/monument-glow; the tower body stays dark ink.
+      const working = agentWorking(CODE_TO_PROFILE[b.agent.code]);
+      const col = working ? WORK_COL : IDLE_COL;
+      b.windows.userData.accent.copy(col);
+      b.windows.material.emissive.copy(col);   // window glow base -> active/idle color
+      b.halo.material.color.copy(col);
+      b.accentMats.forEach(m => m.emissive.copy(col));
+
+      // Windows
+      const list = b.windows.userData.instances;
+      const accent = b.windows.userData.accent;
+      const dim = b.windows.userData.dim;
+      const state = b.windows.userData.state;
+      for (let i=0;i<list.length;i++) {
+        const inst = list[i];
+        tmpObj.position.copy(inst.pos); tmpObj.rotation.copy(inst.rot);
+        tmpObj.scale.set(0.16, 0.22, 1); tmpObj.updateMatrix();
+        b.windows.setMatrixAt(i, tmpObj.matrix);
+        const intensity = stateIntensity(state, inst.seed, t);
+        tmpCol.copy(dim).lerp(accent, intensity);
+        b.windows.setColorAt(i, tmpCol);
+      }
+      b.windows.instanceMatrix.needsUpdate = true;
+      if (b.windows.instanceColor) b.windows.instanceColor.needsUpdate = true;
+
+      // Label position
+      vec.set(b.agent.position[0], monumentMountY(b.agent) + 2.2 + b.inner.position.y, b.agent.position[2]);
+      vec.project(camera);
+      const x = (vec.x*0.5+0.5) * wrap.clientWidth;
+      const y = (-vec.y*0.5+0.5) * wrap.clientHeight;
+      if (vec.z < 1) { b.label.style.display=''; b.label.style.left = x+'px'; b.label.style.top = y+'px'; }
+      else b.label.style.display = 'none';
+    });
+    controls.update();
+    renderer.render(scene, camera);
+    requestAnimationFrame(animate);
+  }
+  animate();
+}
+
+/* ============== Live data hydration ============== */
+window.LIVE = window.LIVE || {};
+/* Frozen 1:1 snapshot of the live /api/state, fed through the REAL applyState()
+   so every hero number, chart and list renders exactly as the live dashboard —
+   real fleet, real gpt-5.5/MiniMax-M3 routing, real board, real logs. */
+const DEMO_STATE = {"fleet": [{"code": "A-00", "initials": "OR", "name": "Orchestrator", "role": "Coordinator", "channel": "telegram", "tasksToday": 2, "success": 100.0, "defaultModel": "MiniMax-M3", "share": 25, "load": 50, "tokens": "2 tasks", "latency": "—", "state": "IDLE", "task": "Confirm in one line: what was the status of the last run?"}, {"code": "A-01", "initials": "SC", "name": "Scout", "role": "Research", "channel": "#scout", "tasksToday": 1, "success": 100.0, "defaultModel": "MiniMax-M3", "share": 12, "load": 25, "tokens": "1 tasks", "latency": "—", "state": "IDLE", "task": "In two lines, research-summarize why multi-agent systems are trending."}, {"code": "A-02", "initials": "SB", "name": "Scribe", "role": "Writing", "channel": "#scribe", "tasksToday": 1, "success": 100.0, "defaultModel": "gpt-5.5", "share": 12, "load": 25, "tokens": "1 tasks", "latency": "—", "state": "IDLE", "task": "Draft a one-sentence intro about building AI agents on a budget."}, {"code": "A-03", "initials": "RE", "name": "Reach", "role": "Marketing", "channel": "#reach", "tasksToday": 2, "success": 100.0, "defaultModel": "MiniMax-M3", "share": 25, "load": 50, "tokens": "2 tasks", "latency": "—", "state": "IDLE", "task": "List 3 monetization ideas in one line each."}, {"code": "A-04", "initials": "DV", "name": "Dev", "role": "Engineering", "channel": "#dev", "tasksToday": 2, "success": 100.0, "defaultModel": "gpt-5.5", "share": 25, "load": 50, "tokens": "2 tasks", "latency": "—", "state": "IDLE", "task": "Summarize the deploy steps in one short line."}], "models": [{"id": "MiniMax-M3", "label": "MiniMax-M3", "vendor": "", "tier": "premium", "note": "routing insight is limited until Prompt 7 is done"}, {"id": "gpt-5.5", "label": "gpt-5.5", "vendor": "", "tier": "premium"}], "working_agents": ["scout"], "agentlogs": [{"agent": "SB", "task": "Draft a one-sentence intro about building AI agents on a budget.", "time": "07:59:40", "model": "gpt-5.5", "status": "completed"}, {"agent": "SC", "task": "In two lines, research-summarize why multi-agent systems are trending.", "time": "07:59:32", "model": "MiniMax-M3", "status": "completed"}, {"agent": "RE", "task": "List 3 monetization ideas in one line each.", "time": "07:58:47", "model": "MiniMax-M3", "status": "completed"}, {"agent": "RE", "task": "Plan a one-line 30/60/90 growth strategy headline.", "time": "07:58:38", "model": "gpt-5.5", "status": "completed"}, {"agent": "DV", "task": "Summarize the deploy steps in one short line.", "time": "07:58:28", "model": "gpt-5.5", "status": "completed"}, {"agent": "DV", "task": "In one sentence, how would you debug a cron job that times out?", "time": "07:57:43", "model": "gpt-5.5", "status": "completed"}, {"agent": "OR", "task": "Confirm in one line: what was the status of the last run?", "time": "07:57:30", "model": "MiniMax-M3", "status": "completed"}, {"agent": "OR", "task": "Plan the week's content coordination in one short line.", "time": "07:57:17", "model": "gpt-5.5", "status": "completed"}], "agentlogs_stats": {"total": 8, "completed": 8, "failed": 0}, "model_usage": [{"name": "gpt-5.5", "count": 5, "pct": 62}, {"name": "MiniMax-M3", "count": 3, "pct": 38}], "routing": {"total": 8, "models": 2, "premium_calls": 8, "fast_calls": 0, "offload_pct": 0}, "sessions": {"totals": {"input": 585028, "output": 64177, "messages": 186}}, "vps": {"cpu_pct": 85.7, "mem_pct": 30.6, "disk_pct": 1.6}, "health": {"gateway_state": "running", "platforms": {"telegram": {"state": "connected"}}}, "board": [{"id": "seed-outline-script", "title": "Outline next week’s video script", "status": "pending", "priority": "high"}, {"id": "seed-sponsor-emails", "title": "Reply to sponsor and collab emails", "status": "pending", "priority": "medium"}, {"id": "seed-edit-video", "title": "Edit this week’s YouTube video", "status": "in_progress", "priority": "high"}, {"id": "seed-launch-newsletter", "title": "Write the launch-day newsletter", "status": "in_progress", "priority": "medium"}, {"id": "seed-publish-blog", "title": "Publish the new blog post", "status": "done", "priority": "medium"}, {"id": "seed-social-posts", "title": "Schedule this week’s social posts", "status": "done", "priority": "low"}]};
+async function hydrate() {
+  try {
+    applyState(await (await fetch('/api/state', {cache:'no-store'})).json());
+  } catch (e) { console.warn('hydrate failed', e); }
+}
+let WORKING_SERVER = {};   // {profile: true} — agents mid-turn per the server
+function agentWorking(profile){ return !!(WORKING_SERVER[profile] || (typeof CHAT_BUSY!=='undefined' && CHAT_BUSY[profile])); }
+function applyState(d) {
+  try {
+    WORKING_SERVER = {}; (d.working_agents||[]).forEach(k => WORKING_SERVER[k]=true);
+    if (d.fleet && d.fleet.length) {
+      AGENTS = d.fleet;
+      ASSIGNED = Object.fromEntries(AGENTS.map(a => [a.code, a.defaultModel]));
+    }
+    if (d.models && d.models.length) MODELS = d.models;
+    LIVE.logs   = (d.agentlogs || []).slice(0,5).map(l => ({agent:l.agent, task:l.task, time:l.time, model:l.model}));
+    LIVE.agentlogs = (d.agentlogs || []).map(l => ({agent:l.agent, task:l.task, time:l.time, model:l.model, status:l.status}));
+    LIVE.cost   = (d.model_usage || []).map(m => ({name:m.name, count:m.count, cost:m.cost, pct:m.pct}));
+    // --- Real hero numbers (data-hero hooks) ---
+    const setHero = (k,v) => { const el = document.querySelector(`[data-hero="${k}"]`); if (el) el.textContent = v; };
+    const board = d.board || [];
+    const openM = board.filter(t => t.status !== 'done').length;
+    const doneM = board.filter(t => t.status === 'done').length;
+    setHero('active-missions', String(openM).padStart(2,'0'));
+    setHero('active-done', `${doneM} resolved`);
+    const vps = d.vps || {};
+    setHero('vps-line', `CPU ${vps.cpu_pct??'—'}% · RAM ${vps.mem_pct??'—'}% · DISK ${vps.disk_pct??'—'}%`);
+    // focus = agent with the largest task share
+    const fleet = d.fleet || [];
+    const top = fleet.slice().sort((a,b)=>b.share-a.share)[0];
+    if (top) {
+      setHero('focus-label', `— FOCUS · ${top.name.toUpperCase()}`);
+      setHero('focus-desc', `${top.name} is carrying the largest share of the workload`);
+      setHero('focus-pct', top.share);
+      const arc = document.querySelector('[data-hero="focus-arc"]');
+      if (arc) arc.setAttribute('stroke-dasharray', `${(top.share/100*263.89).toFixed(2)} 263.89`);
+    }
+    const r = d.routing || {};
+    const okCount = (d.agentlogs_stats && d.agentlogs_stats.completed) != null ? d.agentlogs_stats.completed : null;
+    setHero('resolved-total', r.total ?? 0);
+    setHero('resolved-ok', okCount!=null ? `${okCount} ok` : `${fleet.reduce((s,a)=>s+(a.tasksToday||0),0)} runs`);
+    // routing spotlight (repurposed cost ledger)
+    const toks = (d.sessions && d.sessions.totals) ? ((d.sessions.totals.input||0)+(d.sessions.totals.output||0)) : 0;
+    setHero('tokens-total', toks>=1000 ? (toks/1000).toFixed(1)+'k' : toks);
+    setHero('routing-models', `${r.models||0} models`);
+    setHero('routing-since', `${r.total||0} tasks · ${r.premium_calls||0} complex / ${r.fast_calls||0} simple`);
+    setHero('offload-pct', `${r.offload_pct||0}%`);
+    const ob = document.querySelector('[data-hero="offload-bar"]'); if (ob) ob.style.width = `${r.offload_pct||0}%`;
+    setHero('routing-split', `${r.premium_calls||0} → gpt-5.5 · ${r.fast_calls||0} → MiniMax-M3`);
+    // agents hero pill + office
+    setHero('ag-tasks', r.total||0);
+    const avgS = fleet.length ? (fleet.reduce((s,a)=>s+(a.success||0),0)/fleet.length).toFixed(1)+'%' : '—';
+    setHero('ag-success', avgS);
+    setHero('ag-offload', `${r.offload_pct||0}%`);
+    setHero('office-tasks', r.total||0);
+    setHero('office-lights', fleet.filter(a=>a.state==='EXECUTING').length);
+    // hero header state
+    const h = d.health || {};
+    setHero('hero-gw-state', `● gateway ${h.gateway_state||'—'}`);
+    const tel = (h.platforms||{}).telegram;
+    setHero('hero-tel', tel ? `telegram · ${tel.state}` : 'no platforms');
+    LIVE.ticker = (d.agentlogs || []).slice(0,6).map(l => ({src:l.agent, msg:l.task}));
+    if (d.routing && d.routing.total) LIVE.ticker.push({src:'ROUTER', msg:`complexity routing · ${d.routing.premium_calls} → gpt-5.5 · ${d.routing.fast_calls} → MiniMax-M3`});
+    if (d.board) {
+      const pm = {high:'P1', medium:'P2', low:'P3'}, sm = {pending:'todo', in_progress:'doing', done:'done'};
+      TASKS = d.board.map((t) => ({
+        id: t.id.slice(0,8).toUpperCase(), boardId: t.id, title: t.title,
+        priority: pm[t.priority] || 'P2', due: '—', tags: [t.priority || 'task'],
+        progress: t.status==='done'?100:t.status==='in_progress'?50:0,
+        subtasks: {total:1, done: t.status==='done'?1:0},
+        status: sm[t.status] || 'todo', updated: ''
+      }));
+    }
+    // sync the 3D Office buildings to real agents (models/tasks/state) for consistency
+    if (typeof HQ !== 'undefined') {
+      const byInit = Object.fromEntries((d.fleet || []).map(a => [a.initials, a]));
+      [HQ, ...AGENTS_3D].forEach(b => {
+        const a = byInit[b.code];
+        if (a) { b.model = a.defaultModel; b.task = a.task; b.state = a.state; b.tasksToday = a.tasksToday; b.success = a.success; }
+      });
+      if (typeof empireInited !== 'undefined' && empireInited && typeof renderLegend === 'function') renderLegend();
+    }
+    renderOverview(); renderAgents(); renderTasks();
+    lucide.createIcons();
+  } catch (e) { console.warn('hydrate failed', e); }
+}
+
+/* ============== Boot ============== */
+document.addEventListener('DOMContentLoaded', () => {
+  renderTabs();
+  renderOverview();
+  renderAgents();
+  renderTasks();
+  applyRoute();
+  tickClock();
+  setInterval(tickClock, 1000);
+  lucide.createIcons();
+
+  // --- Task board CRUD, backed by SQLite board.db ---
+  const nmForm = document.getElementById('new-mission-form');
+  const nmTitle = document.getElementById('nm-title');
+  const PRIO_TO_BOARD = { P1:'high', P2:'medium', P3:'low' };
+  const COL_TO_BOARD  = { todo:'pending', doing:'in_progress', done:'done' };
+  const nmBtn = document.getElementById('new-mission-btn');
+  if (nmBtn) nmBtn.addEventListener('click', () => {
+    nmForm.classList.toggle('hidden');
+    if (!nmForm.classList.contains('hidden') && nmTitle) nmTitle.focus();
+  });
+  const nmCancel = document.getElementById('nm-cancel');
+  if (nmCancel) nmCancel.addEventListener('click', () => nmForm.classList.add('hidden'));
+  async function createMission() {
+    const title = (nmTitle.value || '').trim();
+    if (!title) return;
+    const col = document.getElementById('nm-col').value;              // todo/doing/done
+    const prio = document.getElementById('nm-priority').value;        // P1/P2/P3
+    TASKS.unshift({ id:'HRM-'+Math.floor(100+Math.random()*899), title,
+      priority:prio, due:'—', tags:['new'], progress: col==='done'?100:col==='doing'?25:0,
+      subtasks:{total:1,done:col==='done'?1:0}, status:col, updated:'just now' });
+    nmTitle.value = '';
+    nmForm.classList.add('hidden');
+    renderTasks();
+  }
+  const nmCreate = document.getElementById('nm-create');
+  if (nmCreate) nmCreate.addEventListener('click', createMission);
+  if (nmTitle) nmTitle.addEventListener('keydown', e => { if (e.key === 'Enter') createMission(); });
+  // --- Agent detail drawer ---
+  const drawer = document.getElementById('agent-drawer');
+  const drawerBody = document.getElementById('agent-drawer-body');
+  const esc2 = s => (s??'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  function closeDrawer(){ drawer.classList.add('hidden'); }
+  async function openAgent(key){
+    drawer.classList.remove('hidden');
+    drawerBody.innerHTML = '<div class="font-mono text-[11px] text-muted-foreground uppercase tracking-widest py-10 text-center">loading…</div>';
+    try {
+      const src = AGENTS.find(x=>x.name.toLowerCase()===key) || AGENTS[0];
+      const prem = Math.max(1, Math.round(src.tasksToday*0.6)), fast = Math.max(0, src.tasksToday-prem);
+      const a = {
+        initials:src.initials, name:src.name, role:src.role, channel:src.channel,
+        total:src.tasksToday, success:src.success,
+        models:[{model:'gpt-5.5', count:prem},{model:'MiniMax-M3', count:fast}],
+        last_error: src.state==='RETRY' ? 'node 0x9f timeout · retry 1/3' : null,
+        recent:[
+          {task:src.task, status:src.state==='RETRY'?'failed':'completed', time:'2m ago', model:src.defaultModel},
+          {task:'Previous cycle completed cleanly', status:'completed', time:'18m ago', model:src.defaultModel},
+        ],
+      };
+      const modelBars = (a.models||[]).map(m => {
+        const pct = a.total ? Math.round(100*m.count/a.total) : 0;
+        return `<div class="flex items-center gap-2 mb-1.5"><span class="font-mono text-[10px] text-ink w-28 truncate">${esc2(m.model)}</span>
+          <div class="flex-1 h-2 rounded-full bg-secondary overflow-hidden"><div class="h-full rounded-full bg-ember" style="width:${pct}%"></div></div>
+          <span class="font-mono text-[10px] text-muted-foreground w-14 text-right">${m.count}⋅ ${pct}%</span></div>`;
+      }).join('') || '<span class="font-mono text-[10px] text-muted-foreground">no runs yet</span>';
+      const rows = (a.recent||[]).map(r => `<div class="flex items-start gap-2 py-2 border-b border-border/60 last:border-0">
+        <span class="mt-0.5 size-1.5 rounded-full shrink-0 ${r.status==='completed'?'bg-ember':'bg-red-500'}"></span>
+        <div class="min-w-0 flex-1"><p class="font-sans text-[12px] text-ink truncate">${esc2(r.task)}</p>
+          <p class="font-mono text-[9px] text-muted-foreground mt-0.5">${esc2(r.time)} · ${esc2(r.model)}</p></div></div>`).join('')
+        || '<p class="font-mono text-[10px] text-muted-foreground">no recent tasks</p>';
+      drawerBody.innerHTML = `
+        <div class="flex items-center justify-between mb-5">
+          <div class="flex items-center gap-3">
+            <div class="size-12 rounded-2xl bg-ink text-cream grid place-items-center font-mono text-[13px] font-bold">${esc2(a.initials)}</div>
+            <div><div class="font-display text-[24px] text-ink leading-none">${esc2(a.name)}</div>
+              <div class="font-mono text-[9px] uppercase tracking-widest text-muted-foreground mt-1">${esc2(a.role)} · ${esc2(a.channel)}</div></div>
+          </div>
+          <button id="agent-drawer-x" class="size-9 rounded-full bg-cream border border-border grid place-items-center hover:bg-ember hover:text-cream transition"><i data-lucide="x" class="size-4"></i></button>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mb-5">
+          <div class="rounded-2xl bg-cream border border-border p-4"><div class="font-mono text-[9px] uppercase tracking-widest text-muted-foreground">Tasks</div><div class="font-display text-[32px] text-ink tabular-nums leading-none mt-1">${a.total}</div></div>
+          <div class="rounded-2xl bg-cream border border-border p-4"><div class="font-mono text-[9px] uppercase tracking-widest text-muted-foreground">Success</div><div class="font-display text-[32px] text-ember tabular-nums leading-none mt-1">${a.success}%</div></div>
+        </div>
+        <div class="mb-5"><div class="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Model history</div>${modelBars}</div>
+        ${a.last_error ? `<div class="mb-5 rounded-2xl bg-red-500/8 border border-red-500/25 p-3"><div class="font-mono text-[9px] uppercase tracking-widest text-red-500 mb-1">Last error</div><p class="font-sans text-[12px] text-ink">${esc2(a.last_error)}</p></div>` : ''}
+        <div><div class="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Recent tasks</div>${rows}</div>`;
+      lucide.createIcons();
+      document.getElementById('agent-drawer-x').addEventListener('click', closeDrawer);
+    } catch(e){ drawerBody.innerHTML = '<p class="text-muted-foreground">Failed to load.</p>'; }
+  }
+  document.getElementById('agent-drawer-scrim').addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', e => { if (e.key==='Escape') closeDrawer(); });
+  document.addEventListener('click', e => {
+    const card = e.target.closest('[data-agent-key]');
+    if (card){ openAgent(card.dataset.agentKey); }
+  });
+
+  // delete via delegation (cards are re-rendered by hydrate)
+  document.addEventListener('click', async (e) => {
+    const del = e.target.closest('[data-del]');
+    if (!del) return;
+    e.preventDefault(); e.stopPropagation();
+    const i = TASKS.findIndex(t=>t.id===del.dataset.del); if(i>=0) TASKS.splice(i,1);
+    renderTasks();
+  });
+
+  // --- Live updates: SSE (instant) with polling fallback ---
+  let sse = null, pollTimer = null;
+  function startPolling(){ if (!pollTimer) pollTimer = setInterval(hydrate, 6000); }
+  function stopPolling(){ if (pollTimer){ clearInterval(pollTimer); pollTimer = null; } }
+  function connectSSE(){
+    try {
+      sse = new EventSource('/events');
+      sse.addEventListener('state', e => { stopPolling(); try { applyState(JSON.parse(e.data)); } catch(_){} });
+      sse.onerror = () => { startPolling(); };   // browser auto-reconnects; poll meanwhile
+    } catch(_) { startPolling(); }
+  }
+  applyState(DEMO_STATE);   // frozen real snapshot — no server, no SSE, no polling
+});
+</script>
+</body>
+</html>

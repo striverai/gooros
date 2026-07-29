@@ -1,0 +1,25 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+dryrun-artifacts/
+tests/tmp-index.html
+
+# Customer/runtime data must never enter the release repo.
+.env
+.env.*
+*.db
+*.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+customer.yaml
+secrets.env
+agent-mission-control/

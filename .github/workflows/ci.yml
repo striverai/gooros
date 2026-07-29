@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+    tags: ["v*"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install package
+        run: python -m pip install -e .
+
+      - name: Smoke test
+        run: python tests/smoke.py
+
+      - name: Update plan dry run
+        run: |
+          tmp="$(mktemp -d)"
+          mkdir -p "$tmp/project/.gooros" "$tmp/config" "$tmp/data" "$tmp/hermes"
+          cat > "$tmp/project/.gooros/installed.json" <<'JSON'
+          {"product":"gooros-hermes-mission-control","version":"0.0.1","schema_version":1,"installed_at":"20260101T000000Z","public_dashboards":false,"with_9router":false,"systemd":false}
+          JSON
+          cat > "$tmp/config/customer.yaml" <<'YAML'
+          owner_name: CI Owner
+          owner_work: CI
+          owner_focus: Smoke
+          timezone: Asia/Ho_Chi_Minh
+          telegram_chat_id: -1001
+          thread_scout: 11
+          thread_scribe: 12
+          thread_reach: 13
+          thread_dev: 14
+          telegram_home_channel: telegram:-1001
+          public_ip:
+          acme_email:
+          dash_user: gooros
+          model_policy: deepseek-free-first
+          YAML
+          gooros-hermes update --plan --source-dir . --project-dir "$tmp/project" --config-dir "$tmp/config" --data-dir "$tmp/data" --hermes-home "$tmp/hermes"

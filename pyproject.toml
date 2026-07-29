@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gooros-hermes"
+version = "0.1.0"
+description = "Safe installer and updater for Gooros Hermes Mission Control."
+requires-python = ">=3.10"
+readme = "README.md"
+license = { text = "Proprietary" }
+authors = [{ name = "Gooros" }]
+
+[project.scripts]
+gooros-hermes = "gooros_hermes.cli:main"
+
+[tool.setuptools]
+packages = ["gooros_hermes"]
+
+[tool.setuptools.package-data]
+gooros_hermes = []
+

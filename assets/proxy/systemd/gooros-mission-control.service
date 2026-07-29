@@ -1,0 +1,18 @@
+[Unit]
+Description=Gooros Hermes Mission Control dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/gooros/hermes-mission-control.env
+Environment=HOST=127.0.0.1
+Environment=PORT=51763
+WorkingDirectory=%h/agent-mission-control
+ExecStart=/usr/bin/env python3 %h/agent-mission-control/server.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+

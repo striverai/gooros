@@ -1,0 +1,28 @@
+{
+  "product": "gooros-hermes-mission-control",
+  "version": "0.1.0",
+  "schema_version": 1,
+  "migrations": ["0001_initial"],
+  "release_owned": [
+    "assets/dashboard/server.py",
+    "assets/dashboard/template.html",
+    "assets/profiles",
+    "assets/plugins/telegram_topic_profiles",
+    "assets/shared",
+    "assets/proxy"
+  ],
+  "customer_owned": [
+    "~/agent-mission-control/board.db",
+    "~/agent-mission-control/agent-logs.db",
+    "~/agent-mission-control/content",
+    "~/.hermes/state.db",
+    "~/.hermes/kanban.db",
+    "~/.hermes/profiles/*/state.db"
+  ],
+  "merge_managed": [
+    "~/.hermes/config.yaml",
+    "~/.hermes/plugins/telegram_topic_profiles/topics.json",
+    "~/.config/gooros/hermes-mission-control/customer.yaml"
+  ]
+}
+

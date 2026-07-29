@@ -1,0 +1,18 @@
+[Unit]
+Description=9Router local dashboard and OpenAI-compatible endpoint
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/gooros/hermes-mission-control.env
+Environment=HOST=127.0.0.1
+Environment=HOSTNAME=127.0.0.1
+Environment=PORT=20128
+ExecStart=/usr/bin/env 9router
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+
