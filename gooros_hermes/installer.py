@@ -6,7 +6,7 @@ import shutil
 import socket
 from pathlib import Path
 
-from .configstore import CustomerConfig, collect_customer_config, validate_required, write_customer_files
+from .configstore import CustomerConfig, collect_customer_config, merge_env_values, validate_required, write_customer_files
 from .constants import AGENTS, SPECIALISTS, VERSION
 from .dashboard_patcher import build_live_dashboard
 from .fsutil import atomic_write_json, atomic_write_text, copy_file, ensure_dir
@@ -133,8 +133,16 @@ def install_logging(paths: InstallPaths, runner: Runner) -> None:
 
 def install_telegram_routing(runner: Runner, paths: InstallPaths, config: CustomerConfig) -> None:
     if runner.dry_run:
-        runner.log("would merge Hermes Telegram config, install telegram_topic_profiles, enable multiplex_profiles, and restart gateway")
+        runner.log("would merge Hermes Telegram env/config, install telegram_topic_profiles, enable multiplex_profiles, and restart gateway")
         return
+    merge_env_values(
+        paths.hermes_home / ".env",
+        {
+            "TELEGRAM_BOT_TOKEN": config.telegram_bot_token,
+            "TELEGRAM_HOME_CHANNEL": config.telegram_home_channel or f"telegram:{config.telegram_chat_id}",
+            "TELEGRAM_ALLOWED_USERS": config.telegram_allowed_users,
+        },
+    )
     config_path_result = runner.run(["hermes", "config", "path"], capture=True, check=False, timeout=30)
     config_path = Path(config_path_result.stdout.strip()).expanduser() if config_path_result.returncode == 0 and config_path_result.stdout.strip() else paths.hermes_home / "config.yaml"
     merge_telegram_group_config(config_path, config.telegram_chat_id)
@@ -245,7 +253,7 @@ def install(args) -> int:
     paths = default_paths(args.hermes_home, args.project_dir, args.config_dir, args.data_dir)
     runner = Runner(dry_run=args.dry_run, verbose=True)
     config = collect_customer_config(args, interactive=not args.yes)
-    missing = validate_required(config, public_dashboards=args.with_public_dashboards)
+    missing = validate_required(config, public_dashboards=args.with_public_dashboards, require_telegram_token=True)
     if missing and not args.dry_run:
         raise RuntimeError("missing required config: " + ", ".join(missing))
     preflight(runner, paths, public_dashboards=args.with_public_dashboards, with_9router=args.with_9router)

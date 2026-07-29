@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gooros-hermes"
-version = "0.1.0"
+version = "0.1.1"
 description = "Safe installer and updater for Gooros Hermes Mission Control."
 requires-python = ">=3.10"
 readme = "README.md"
@@ -19,4 +19,3 @@ packages = ["gooros_hermes"]
 
 [tool.setuptools.package-data]
 gooros_hermes = []
-

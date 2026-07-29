@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 PRODUCT = "gooros-hermes-mission-control"
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 SCHEMA_VERSION = 1
 
 AGENTS = ("orchestrator", "scout", "scribe", "reach", "dev")
@@ -47,4 +47,3 @@ AGENT_META = {
 
 GOOROS_BEGIN = "# BEGIN GOOROS HERMES MANAGED"
 GOOROS_END = "# END GOOROS HERMES MANAGED"
-

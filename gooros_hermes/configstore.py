@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import getpass
+import os
 import secrets
 from dataclasses import dataclass
 from pathlib import Path
@@ -16,6 +17,8 @@ class CustomerConfig:
     owner_focus: str
     timezone: str
     telegram_chat_id: str
+    telegram_bot_token: str
+    telegram_allowed_users: str
     thread_scout: str
     thread_scribe: str
     thread_reach: str
@@ -68,6 +71,8 @@ def collect_customer_config(args: object, *, interactive: bool) -> CustomerConfi
         "owner_focus": _arg(args, "owner_focus"),
         "timezone": _arg(args, "timezone", "Asia/Ho_Chi_Minh"),
         "telegram_chat_id": _arg(args, "telegram_chat_id"),
+        "telegram_bot_token": _arg(args, "telegram_bot_token", os.environ.get("TELEGRAM_BOT_TOKEN", "")),
+        "telegram_allowed_users": _arg(args, "telegram_allowed_users", os.environ.get("TELEGRAM_ALLOWED_USERS", "")),
         "thread_scout": _arg(args, "thread_scout"),
         "thread_scribe": _arg(args, "thread_scribe"),
         "thread_reach": _arg(args, "thread_reach"),
@@ -85,6 +90,11 @@ def collect_customer_config(args: object, *, interactive: bool) -> CustomerConfi
         values["owner_focus"] = _prompt("Current focus", values["owner_focus"])
         values["timezone"] = _prompt("Timezone", values["timezone"])
         values["telegram_chat_id"] = _prompt("Telegram group chat ID (-100...)", values["telegram_chat_id"])
+        values["telegram_bot_token"] = _prompt("Telegram bot token", values["telegram_bot_token"], secret=True)
+        values["telegram_allowed_users"] = _prompt(
+            "Telegram allowed user IDs (comma-separated, optional)",
+            values["telegram_allowed_users"],
+        )
         values["thread_scout"] = _prompt("Thread ID #scout", values["thread_scout"])
         values["thread_scribe"] = _prompt("Thread ID #scribe", values["thread_scribe"])
         values["thread_reach"] = _prompt("Thread ID #reach", values["thread_reach"])
@@ -101,9 +111,11 @@ def collect_customer_config(args: object, *, interactive: bool) -> CustomerConfi
     return CustomerConfig(**values)
 
 
-def validate_required(config: CustomerConfig, *, public_dashboards: bool) -> list[str]:
+def validate_required(config: CustomerConfig, *, public_dashboards: bool, require_telegram_token: bool = False) -> list[str]:
     missing = []
     required = ["owner_name", "timezone", "telegram_chat_id", "thread_scout", "thread_scribe", "thread_reach", "thread_dev"]
+    if require_telegram_token:
+        required.append("telegram_bot_token")
     if public_dashboards:
         required += ["public_ip", "acme_email", "dash_user", "dash_password"]
     for key in required:
@@ -138,14 +150,48 @@ def _read_env_file(path: Path) -> dict[str, str]:
     return values
 
 
+def merge_env_values(path: Path, updates: dict[str, str]) -> None:
+    clean_updates = {}
+    for key, value in updates.items():
+        if value in (None, ""):
+            continue
+        text = str(value)
+        if "\n" in text or "\r" in text:
+            raise RuntimeError(f"refusing to write multiline env value: {key}")
+        clean_updates[key] = text
+    if not clean_updates:
+        return
+    lines = path.read_text(encoding="utf-8", errors="replace").splitlines() if path.exists() else []
+    seen: set[str] = set()
+    out: list[str] = []
+    for raw in lines:
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#") or "=" not in raw:
+            out.append(raw)
+            continue
+        key = raw.split("=", 1)[0].strip().lstrip("\ufeff")
+        if key in clean_updates:
+            out.append(f"{key}={clean_updates[key]}")
+            seen.add(key)
+        else:
+            out.append(raw)
+    for key, value in clean_updates.items():
+        if key not in seen:
+            out.append(f"{key}={value}")
+    atomic_write_text(path, "\n".join(out).rstrip() + "\n", mode=0o600)
+
+
 def read_customer_files(paths: InstallPaths) -> CustomerConfig:
     values = _read_colon_file(paths.customer_config)
+    secrets = _read_env_file(paths.secrets_env)
     defaults = {
         "owner_name": "",
         "owner_work": "",
         "owner_focus": "",
         "timezone": "Asia/Ho_Chi_Minh",
         "telegram_chat_id": "",
+        "telegram_bot_token": secrets.get("GOOROS_TELEGRAM_BOT_TOKEN", secrets.get("TELEGRAM_BOT_TOKEN", "")),
+        "telegram_allowed_users": secrets.get("GOOROS_TELEGRAM_ALLOWED_USERS", secrets.get("TELEGRAM_ALLOWED_USERS", "")),
         "thread_scout": "",
         "thread_scribe": "",
         "thread_reach": "",
@@ -175,6 +221,10 @@ def write_customer_files(paths: InstallPaths, config: CustomerConfig, caddy_hash
         f"GOOROS_ACME_EMAIL={config.acme_email}",
         f"GOOROS_DASH_USER={config.dash_user}",
     ]
+    if config.telegram_bot_token:
+        env_lines.append(f"GOOROS_TELEGRAM_BOT_TOKEN={config.telegram_bot_token}")
+    if config.telegram_allowed_users:
+        env_lines.append(f"GOOROS_TELEGRAM_ALLOWED_USERS={config.telegram_allowed_users}")
     if caddy_hash:
         env_lines.append(f"GOOROS_DASH_PASS_HASH={caddy_hash}")
     atomic_write_text(paths.secrets_env, "\n".join(env_lines) + "\n", mode=0o600)

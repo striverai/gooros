@@ -11,6 +11,7 @@ from .paths import InstallPaths
 def snapshot_targets(paths: InstallPaths) -> dict[str, Path]:
     targets = {
         "hermes-config.yaml": paths.hermes_home / "config.yaml",
+        "hermes-env": paths.hermes_home / ".env",
         "gooros-customer.yaml": paths.customer_config,
         "gooros-secrets.env": paths.secrets_env,
         "board.db": paths.project_dir / "board.db",

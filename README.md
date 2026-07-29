@@ -25,7 +25,9 @@ Then run the fresh install:
 gooros-hermes install --with-hermes --with-9router --with-public-dashboards --systemd
 ```
 
-For non-interactive customer installs, pass the required `--owner-*`, Telegram topic IDs, public IP, and ACME email flags shown below.
+Interactive install prompts for the Telegram bot token, group chat ID, topic thread IDs, public IP, and dashboard auth details. Bot tokens are written only to local secret files, not to this repository.
+
+For non-interactive customer installs, set `TELEGRAM_BOT_TOKEN` in the shell and pass the required `--owner-*`, Telegram topic IDs, public IP, and ACME email flags shown below.
 
 ## Fresh Install
 
@@ -42,6 +44,8 @@ python3 -m gooros_hermes.cli install \
 Non-interactive example:
 
 ```bash
+export TELEGRAM_BOT_TOKEN="123456789:REPLACE_WITH_CUSTOMER_BOT_TOKEN"
+
 python3 -m gooros_hermes.cli install \
   --yes \
   --with-hermes \
@@ -53,6 +57,7 @@ python3 -m gooros_hermes.cli install \
   --owner-focus "Current goal" \
   --timezone "Asia/Ho_Chi_Minh" \
   --telegram-chat-id "-1001234567890" \
+  --telegram-allowed-users "123456789,987654321" \
   --thread-scout "11" \
   --thread-scribe "12" \
   --thread-reach "13" \

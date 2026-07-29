@@ -24,6 +24,8 @@ def add_config_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--owner-focus", default="")
     parser.add_argument("--timezone", default="Asia/Ho_Chi_Minh")
     parser.add_argument("--telegram-chat-id")
+    parser.add_argument("--telegram-bot-token")
+    parser.add_argument("--telegram-allowed-users", default="")
     parser.add_argument("--thread-scout")
     parser.add_argument("--thread-scribe")
     parser.add_argument("--thread-reach")
