@@ -51,6 +51,14 @@ gooros-hermes install \
   --systemd
 ```
 
+Or run bootstrap and install in one pass:
+
+```bash
+GOOROS_HERMES_ENV_FILE=~/gooros-customer.env \
+GOOROS_HERMES_RUN_INSTALL=1 \
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/striverai/gooros/main/install.sh)"
+```
+
 Do not run the whole install command with `sudo`. The installer asks for sudo
 only when it needs to write Caddy or systemd files.
 
@@ -69,15 +77,16 @@ and migrations:
 gooros-hermes update
 ```
 
-If the customer only needs dashboard/UI fixes and 9Router provider setup is not
-ready yet:
+If the customer only needs infrastructure/dashboard work and 9Router provider
+setup is not ready yet:
 
 ```bash
+GOOROS_9ROUTER_SMOKE=0 gooros-hermes install --yes --env-file ~/gooros-customer.env --with-hermes --with-9router --with-public-dashboards --systemd
 GOOROS_9ROUTER_SMOKE=0 gooros-hermes update
 ```
 
 Use that bypass only for a short pilot window. Re-enable the 9Router smoke test
-once the provider is connected.
+and rerun verify/update once the provider is connected.
 
 ## 4. Post-Install Verification
 

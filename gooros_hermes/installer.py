@@ -4,6 +4,7 @@ import json
 import os
 import getpass
 import shutil
+import subprocess
 import time
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -13,10 +14,26 @@ from .constants import GOOROS_9ROUTER_API_KEY_NAME, GOOROS_9ROUTER_COMBO_NAME, S
 from .dashboard_patcher import build_live_dashboard
 from .fsutil import atomic_write_json, atomic_write_text, copy_file, ensure_dir
 from .paths import InstallPaths, asset_path, default_paths
-from .proxy import caddy_hash_password, install_public_proxy, root_prefix, router_local_api_key, sslip_name, write_system_env
+from .proxy import (
+    caddy_hash_password,
+    install_caddy_if_missing,
+    install_public_proxy,
+    root_prefix,
+    router_initial_password,
+    router_local_api_key,
+    sslip_name,
+    write_system_env,
+)
 from .release import current_source_metadata
 from .runner import Runner
-from .router_api import choose_router_model, discover_free_router_models, ensure_router_api_key, ensure_router_combo, ensure_router_round_robin
+from .router_api import (
+    REQUIRED_FREE_PROVIDERS,
+    choose_router_model,
+    discover_free_router_models,
+    ensure_router_api_key,
+    ensure_router_combo,
+    ensure_router_round_robin,
+)
 from .safety import create_snapshot, write_install_state
 from .verify import verify_install
 from .yaml_merge import merge_telegram_group_config, remove_top_level_block
@@ -50,7 +67,15 @@ def install_hermes_if_needed(runner: Runner, *, with_hermes: bool) -> None:
     if not with_hermes:
         raise RuntimeError("Hermes CLI not found; rerun with --with-hermes")
     runner.log("[hermes] installing Hermes Agent using official install script")
-    runner.shell("curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash", timeout=600)
+    try:
+        runner.shell("curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash", timeout=600, env={"CI": "1"})
+    except (RuntimeError, subprocess.TimeoutExpired) as exc:
+        if shutil.which("hermes"):
+            runner.log(f"[hermes] install script exited before setup completed; Hermes CLI is present, continuing: {exc}")
+            return
+        raise RuntimeError(f"Hermes install script did not finish and Hermes CLI is still missing: {exc}") from exc
+    if not shutil.which("hermes"):
+        raise RuntimeError("Hermes install script completed, but Hermes CLI is still missing from PATH")
 
 
 def install_9router_if_requested(runner: Runner, *, requested: bool) -> None:
@@ -65,6 +90,15 @@ def install_9router_if_requested(runner: Runner, *, requested: bool) -> None:
             raise RuntimeError("npm is required to install 9Router")
     if not shutil.which("9router"):
         runner.run(["npm", "install", "-g", "9router"], timeout=600)
+
+
+def hermes_plugin_enable_command(runner: Runner, plugin: str) -> list[str]:
+    command = ["hermes", "plugins", "enable", plugin]
+    result = runner.run(["hermes", "plugins", "enable", "--help"], capture=True, check=False, timeout=30)
+    help_text = (result.stdout or "") + "\n" + (result.stderr or "")
+    if "--no-allow-tool-override" in help_text:
+        command.append("--no-allow-tool-override")
+    return command
 
 
 def _http_ok(url: str, timeout: float = 5.0) -> tuple[bool, str]:
@@ -193,9 +227,9 @@ def install_logging(paths: InstallPaths, runner: Runner) -> None:
     runner.log(f"[logging] weekly cleanup crontab line:\n{cron_line}")
 
 
-def install_telegram_routing(runner: Runner, paths: InstallPaths, config: CustomerConfig) -> None:
+def install_telegram_routing(runner: Runner, paths: InstallPaths, config: CustomerConfig, *, systemd: bool = False) -> None:
     if runner.dry_run:
-        runner.log("would merge Hermes Telegram env/config, install telegram_topic_profiles, enable multiplex_profiles, and restart gateway")
+        runner.log("would merge Hermes Telegram env/config, install telegram_topic_profiles, enable multiplex_profiles, and install/start gateway")
         return
     merge_env_values(
         paths.hermes_home / ".env",
@@ -223,8 +257,8 @@ def install_telegram_routing(runner: Runner, paths: InstallPaths, config: Custom
         },
     }
     atomic_write_json(plugin_dir / "topics.json", topics, mode=0o600)
-    runner.run(["hermes", "plugins", "enable", "telegram_topic_profiles"], check=False, timeout=60)
-    runner.run(["hermes", "gateway", "restart"], check=False, timeout=120)
+    runner.run(hermes_plugin_enable_command(runner, "telegram_topic_profiles"), check=False, timeout=60, input_text="n\n")
+    restart_gateway(runner, systemd=systemd)
 
 
 def install_dashboard(paths: InstallPaths, runner: Runner | None = None) -> None:
@@ -248,6 +282,18 @@ def write_model_routing(paths: InstallPaths, combo_name: str, models: list[str],
         return
     if not models:
         raise RuntimeError("cannot write model routing without free 9Router models")
+    required_providers = [
+        {
+            "id": spec.provider_id,
+            "name": spec.display_name,
+            "alias": spec.alias,
+            "members": [
+                model for model in models
+                if model.startswith(f"{spec.alias}/") or model.startswith(f"{spec.provider_id}/")
+            ],
+        }
+        for spec in REQUIRED_FREE_PROVIDERS
+    ]
     data = {
         "policy": "9router-free-combo-round-robin",
         "combo": {
@@ -256,6 +302,7 @@ def write_model_routing(paths: InstallPaths, combo_name: str, models: list[str],
             "priority": "deepseek-first",
             "members": models,
             "preferred_model": choose_9router_model(models),
+            "required_providers": required_providers,
         },
         "models": [{"id": combo_name, "tier": "fast"}],
         "complex_keywords": ["code", "debug", "architecture", "strategy", "multi-step", "longform", "reason"],
@@ -311,6 +358,17 @@ def ensure_9router_hosted_combo(runner: Runner, paths: InstallPaths) -> tuple[st
     discovery = discover_free_router_models()
     for warning in discovery.warnings:
         runner.log(f"[9router] model discovery warning: {warning}")
+    if discovery.missing_required_providers:
+        missing = ", ".join(discovery.missing_required_providers)
+        required = ", ".join(f"{spec.display_name} ({spec.alias}/...)" for spec in REQUIRED_FREE_PROVIDERS)
+        raise RuntimeError(
+            "9Router free combo is incomplete. Gooros requires every free model exposed by "
+            f"{required}; missing provider model list: {missing}. Check 9Router dashboard auth/network, "
+            "then rerun gooros-hermes update."
+        )
+    for spec in REQUIRED_FREE_PROVIDERS:
+        count = len(discovery.required_provider_models.get(spec.provider_id, []))
+        runner.log(f"[9router] {spec.display_name} models in combo: {count}")
     if not discovery.models:
         raise RuntimeError(
             "9Router has no free models available for the Gooros combo. Connect at least one working free/free-tier "
@@ -345,6 +403,41 @@ def _required_bin(name: str) -> str:
     raise RuntimeError(f"required executable not found for systemd service: {name}")
 
 
+def _candidate_9router_server_paths(router_bin: str) -> list[Path]:
+    executable = Path(router_bin).expanduser().resolve()
+    candidates: list[Path] = []
+    for parent in (executable.parent, *executable.parents):
+        candidates.append(parent / "app" / "server.js")
+        candidates.append(parent / "node_modules" / "9router" / "app" / "server.js")
+    return candidates
+
+
+def resolve_9router_server_js(runner: Runner, router_bin: str) -> Path:
+    candidates = _candidate_9router_server_paths(router_bin)
+    if shutil.which("npm"):
+        result = runner.run(["npm", "root", "-g"], capture=True, check=False, timeout=30)
+        npm_root = (result.stdout or "").strip()
+        if result.returncode == 0 and npm_root:
+            candidates.append(Path(npm_root).expanduser() / "9router" / "app" / "server.js")
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate.resolve()
+    searched = "\n".join(str(path) for path in candidates[:8])
+    raise RuntimeError(
+        "9Router server entrypoint app/server.js was not found after npm install. "
+        "The 9Router package layout may have changed; inspect the installed package before enabling systemd.\n"
+        f"Searched:\n{searched}"
+    )
+
+
+def seed_router_management_env(paths: InstallPaths) -> None:
+    password = router_initial_password(paths)
+    if not password:
+        return
+    os.environ.setdefault("GOOROS_9ROUTER_INITIAL_PASSWORD", password)
+    os.environ.setdefault("INITIAL_PASSWORD", password)
+
+
 def install_systemd_services(runner: Runner, paths: InstallPaths, *, with_9router: bool) -> None:
     if os.name != "posix":
         return
@@ -356,6 +449,8 @@ def install_systemd_services(runner: Runner, paths: InstallPaths, *, with_9route
     if with_9router:
         services.append("9router.service")
     user, group, home, service_path = _service_account()
+    router_bin = _required_bin("9router") if with_9router else "/usr/bin/false"
+    router_server = resolve_9router_server_js(runner, router_bin) if with_9router else Path("/usr/bin/false")
     replacements = {
         "%GOOROS_SERVICE_USER%": user,
         "%GOOROS_SERVICE_GROUP%": group,
@@ -364,7 +459,10 @@ def install_systemd_services(runner: Runner, paths: InstallPaths, *, with_9route
         "%GOOROS_PROJECT_DIR%": str(paths.project_dir),
         "%GOOROS_PYTHON3%": _required_bin("python3"),
         "%GOOROS_HERMES_BIN%": _required_bin("hermes"),
-        "%GOOROS_9ROUTER_BIN%": _required_bin("9router") if with_9router else "/usr/bin/false",
+        "%GOOROS_9ROUTER_BIN%": router_bin,
+        "%GOOROS_NODE_BIN%": _required_bin("node") if with_9router else "/usr/bin/false",
+        "%GOOROS_9ROUTER_APP_DIR%": str(router_server.parent),
+        "%GOOROS_9ROUTER_SERVER_JS%": str(router_server),
     }
     for service in services:
         src = asset_path("proxy", "systemd", service)
@@ -383,8 +481,35 @@ def install_systemd_services(runner: Runner, paths: InstallPaths, *, with_9route
         runner.run(prefix + ["systemctl", "restart", service], timeout=120, check=False)
 
 
-def restart_gateway(runner: Runner) -> None:
-    runner.run(["hermes", "gateway", "restart"], check=False, timeout=120)
+def _gateway_system_args(systemd: bool) -> list[str]:
+    return ["--system"] if systemd and os.name == "posix" else []
+
+
+def _gateway_env() -> dict[str, str]:
+    return {"HERMES_ACCEPT_HOOKS": "1"}
+
+
+def restart_gateway(runner: Runner, *, systemd: bool = False) -> None:
+    if runner.dry_run:
+        runner.log("would ensure Hermes gateway service is installed, started, and restarted")
+        return
+    system_args = _gateway_system_args(systemd)
+    base = ["hermes", "gateway", "--accept-hooks"]
+    restart = runner.run(base + ["restart", *system_args], check=False, capture=True, timeout=120, env=_gateway_env())
+    if restart.returncode != 0:
+        detail = (restart.stderr or restart.stdout or "").strip()
+        if detail:
+            runner.log(f"[telegram] gateway restart did not find a ready service: {detail}")
+        install_cmd = base + ["install", "--start-now", "--start-on-login", *system_args]
+        if system_args:
+            user, _, _, _ = _service_account()
+            install_cmd.extend(["--run-as-user", user])
+        runner.run(install_cmd, check=False, capture=True, timeout=180, env=_gateway_env())
+    runner.run(base + ["start", "--all", *system_args], check=False, capture=True, timeout=120, env=_gateway_env())
+    status = runner.run(base + ["status", "--deep", *system_args], check=False, capture=True, timeout=60, env=_gateway_env())
+    if status.returncode != 0:
+        detail = (status.stderr or status.stdout or "").strip()
+        runner.log(f"[telegram] gateway status warning: {detail or 'status command failed'}")
 
 
 def restart_systemd_services(runner: Runner, *, with_9router: bool) -> None:
@@ -414,14 +539,18 @@ def install(args) -> int:
         runner.log(f"[safety] snapshot: {snap}")
     install_hermes_if_needed(runner, with_hermes=args.with_hermes)
     install_9router_if_requested(runner, requested=args.with_9router)
+    if args.with_public_dashboards:
+        install_caddy_if_missing(runner)
     caddy_hash = caddy_hash_password(runner, config.dash_password) if args.with_public_dashboards else None
     if not args.dry_run:
         write_customer_files(paths, config, caddy_hash)
     write_system_env(runner, paths, config, caddy_hash or "") if (args.systemd or args.with_public_dashboards) else None
+    if args.with_9router and not args.dry_run:
+        seed_router_management_env(paths)
     install_orchestrator_rules(paths, config, runner)
     install_profiles(runner, paths, config)
     install_logging(paths, runner)
-    install_telegram_routing(runner, paths, config)
+    install_telegram_routing(runner, paths, config, systemd=args.systemd)
     install_dashboard(paths, runner)
     if args.systemd:
         install_systemd_services(runner, paths, with_9router=args.with_9router)
@@ -436,7 +565,7 @@ def install(args) -> int:
             smoke_9router_model(combo_name, api_key)
         configure_hermes_for_9router(runner, paths, combo_name, api_key)
         if not args.dry_run:
-            restart_gateway(runner)
+            restart_gateway(runner, systemd=args.systemd)
             if args.systemd:
                 restart_systemd_services(runner, with_9router=True)
     if args.with_public_dashboards:
@@ -453,7 +582,13 @@ def install(args) -> int:
                 **current_source_metadata(),
             },
         )
-    failures = [] if args.dry_run else verify_install(paths, public=args.with_public_dashboards, with_9router=args.with_9router)
+    failures = [] if args.dry_run else verify_install(
+        paths,
+        public=args.with_public_dashboards,
+        with_9router=args.with_9router,
+        auth_user=config.dash_user,
+        auth_password=config.dash_password if args.with_public_dashboards else "",
+    )
     print_install_report(paths, config, caddy_hash, failures, public=args.with_public_dashboards, with_9router=args.with_9router, dry_run=args.dry_run)
     return 1 if failures else 0
 

@@ -1,5 +1,5 @@
 (gooros_auth) {
-	basic_auth {
+	{$GOOROS_BASIC_AUTH_DIRECTIVE} {
 		{$GOOROS_DASH_USER} {$GOOROS_DASH_PASS_HASH}
 	}
 	header {
@@ -19,18 +19,22 @@
 {$GOOROS_HERMES_HOST} {
 	import gooros_auth
 	encode zstd gzip
-	reverse_proxy 127.0.0.1:9119
+	reverse_proxy 127.0.0.1:9119 {
+		header_up Host 127.0.0.1:9119
+	}
 }
 
 {$GOOROS_ROUTER_HOST} {
-	import gooros_auth
-	encode zstd gzip
+	route {
+		import gooros_auth
+		encode zstd gzip
 
-	@openai_api path /v1/*
-	respond @openai_api "9Router API is local-only on this install" 403
+		@openai_api path /v1/*
+		respond @openai_api "9Router API is local-only on this install" 403
 
-	@router_root path /
-	redir @router_root /dashboard 302
+		@router_root path /
+		redir @router_root /dashboard 302
 
-	reverse_proxy 127.0.0.1:20128
+		reverse_proxy 127.0.0.1:20128
+	}
 }

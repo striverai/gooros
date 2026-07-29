@@ -11,7 +11,7 @@ from .constants import AGENTS, GOOROS_9ROUTER_COMBO_NAME, SPECIALISTS
 from .paths import InstallPaths
 from .configstore import read_customer_files, read_env_values
 from .proxy import verify_public_proxy
-from .router_api import get_router_settings, list_router_combos, list_router_keys
+from .router_api import REQUIRED_FREE_PROVIDERS, get_router_settings, list_router_combos, list_router_keys
 from .runner import Runner
 
 
@@ -35,7 +35,14 @@ def _router_models() -> tuple[list[str], str]:
         return [], str(exc)
 
 
-def verify_install(paths: InstallPaths, *, public: bool = False, with_9router: bool = False) -> list[str]:
+def verify_install(
+    paths: InstallPaths,
+    *,
+    public: bool = False,
+    with_9router: bool = False,
+    auth_user: str = "",
+    auth_password: str = "",
+) -> list[str]:
     failures: list[str] = []
     if (paths.hermes_home / "profiles" / "orchestrator").exists():
         failures.append("profiles/orchestrator exists; Orchestrator must remain the default Hermes agent")
@@ -88,6 +95,48 @@ def verify_install(paths: InstallPaths, *, public: bool = False, with_9router: b
             conn.execute("SELECT COUNT(*) FROM tasks").fetchone()
     except Exception as exc:
         failures.append(f"board.db invalid: {exc}")
+    telegram_env = read_env_values(paths.hermes_home / ".env")
+    if not telegram_env.get("TELEGRAM_BOT_TOKEN"):
+        failures.append("TELEGRAM_BOT_TOKEN missing from Hermes .env; Telegram bot cannot receive chat")
+    home_channel = telegram_env.get("TELEGRAM_HOME_CHANNEL", "")
+    if not home_channel.startswith("telegram:"):
+        failures.append("TELEGRAM_HOME_CHANNEL missing or invalid; expected telegram:<chat_id>")
+    plugin_dir = paths.hermes_home / "plugins" / "telegram_topic_profiles"
+    if not (plugin_dir / "__init__.py").exists() or not (plugin_dir / "plugin.yaml").exists():
+        failures.append("telegram_topic_profiles plugin is not installed")
+    topics_path = plugin_dir / "topics.json"
+    if topics_path.exists():
+        try:
+            topics_data = json.loads(topics_path.read_text(encoding="utf-8"))
+            topic_map = topics_data.get("topics") if isinstance(topics_data, dict) else {}
+            if not isinstance(topic_map, dict) or len([key for key, value in topic_map.items() if key and value]) < 4:
+                failures.append("telegram_topic_profiles topics.json does not contain all four specialist topic routes")
+        except Exception as exc:
+            failures.append(f"telegram_topic_profiles topics.json invalid: {exc}")
+    else:
+        failures.append("telegram_topic_profiles topics.json missing")
+    if shutil.which("hermes"):
+        gateway_ok = False
+        gateway_details: list[str] = []
+        for cmd in (
+            ["hermes", "gateway", "--accept-hooks", "status", "--deep"],
+            ["hermes", "gateway", "--accept-hooks", "status", "--deep", "--system"],
+        ):
+            result = Runner(verbose=False).run(
+                cmd,
+                capture=True,
+                check=False,
+                timeout=45,
+                env={"HERMES_ACCEPT_HOOKS": "1"},
+            )
+            if result.returncode == 0:
+                gateway_ok = True
+                break
+            detail = (result.stderr or result.stdout or "").strip()
+            if detail:
+                gateway_details.append(detail)
+        if not gateway_ok:
+            failures.append("Hermes gateway service is not healthy; Telegram bot will not chat: " + " | ".join(gateway_details[:2]))
     if public and not shutil.which("caddy"):
         failures.append("public dashboard requested but caddy is not installed")
     if public:
@@ -95,8 +144,10 @@ def verify_install(paths: InstallPaths, *, public: bool = False, with_9router: b
         if not ok:
             failures.append(f"Hermes native dashboard upstream not reachable on 127.0.0.1:9119: {detail}")
         config = read_customer_files(paths)
+        if auth_user:
+            config.dash_user = auth_user
         if config.public_ip and shutil.which("curl"):
-            failures.extend(verify_public_proxy(Runner(verbose=False), config))
+            failures.extend(verify_public_proxy(Runner(verbose=False), config, auth_password=auth_password))
         elif config.public_ip:
             failures.append("public dashboard requested but curl is not installed")
     if with_9router:
@@ -118,6 +169,7 @@ def verify_install(paths: InstallPaths, *, public: bool = False, with_9router: b
                     failures.append("stored GOOROS_9ROUTER_API_KEY is not present as an active 9Router API key")
             except Exception as exc:
                 failures.append(f"9Router API key list not verifiable: {exc}")
+        combo_models: list[str] = []
         try:
             combos = list_router_combos()
             combo = next((item for item in combos if item.get("name") == GOOROS_9ROUTER_COMBO_NAME), None)
@@ -125,6 +177,14 @@ def verify_install(paths: InstallPaths, *, public: bool = False, with_9router: b
                 failures.append(f"9Router combo missing: {GOOROS_9ROUTER_COMBO_NAME}")
             elif not combo.get("models"):
                 failures.append(f"9Router combo has no member models: {GOOROS_9ROUTER_COMBO_NAME}")
+            else:
+                combo_models = [str(model).strip() for model in combo.get("models", []) if str(model).strip()]
+                bad_models = [model for model in combo_models if "/" not in model]
+                if bad_models:
+                    failures.append("9Router combo contains non-routable raw model IDs: " + ", ".join(bad_models[:5]))
+                for spec in REQUIRED_FREE_PROVIDERS:
+                    if not any(model.startswith(f"{spec.alias}/") or model.startswith(f"{spec.provider_id}/") for model in combo_models):
+                        failures.append(f"9Router combo is missing required provider models: {spec.display_name} ({spec.alias}/...)")
         except Exception as exc:
             failures.append(f"9Router combo list not verifiable: {exc}")
         try:
@@ -140,8 +200,16 @@ def verify_install(paths: InstallPaths, *, public: bool = False, with_9router: b
                 combo_data = routing_data.get("combo", {}) if isinstance(routing_data, dict) else {}
                 if combo_data.get("name") != GOOROS_9ROUTER_COMBO_NAME:
                     failures.append("model-routing.json does not point to the Gooros 9Router combo")
-                if not combo_data.get("members"):
+                route_members = [str(model).strip() for model in (combo_data.get("members") or []) if str(model).strip()]
+                if not route_members:
                     failures.append("model-routing.json has no free combo member list")
+                for spec in REQUIRED_FREE_PROVIDERS:
+                    if not any(model.startswith(f"{spec.alias}/") or model.startswith(f"{spec.provider_id}/") for model in route_members):
+                        failures.append(f"model-routing.json is missing required provider models: {spec.display_name}")
+                if combo_models:
+                    missing_from_router = sorted(set(route_members) - set(combo_models))
+                    if missing_from_router:
+                        failures.append("9Router combo is missing model-routing members: " + ", ".join(missing_from_router[:5]))
             except Exception as exc:
                 failures.append(f"model-routing.json invalid: {exc}")
         else:

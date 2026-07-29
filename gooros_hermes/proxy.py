@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import os
+import re
 import secrets
 import shutil
-import subprocess
 from pathlib import Path
 
 from .configstore import CustomerConfig, merge_env_values, read_env_values
@@ -48,6 +48,21 @@ def install_caddy_if_missing(runner: Runner) -> None:
     runner.run(prefix + ["apt-get", "install", "-y", "caddy"], timeout=300)
 
 
+def _caddy_version_tuple(text: str) -> tuple[int, int, int]:
+    match = re.search(r"\bv?(\d+)\.(\d+)\.(\d+)\b", text)
+    if not match:
+        return (0, 0, 0)
+    return tuple(int(part) for part in match.groups())
+
+
+def caddy_basic_auth_directive(runner: Runner) -> str:
+    if runner.dry_run or not shutil.which("caddy"):
+        return "basicauth"
+    result = runner.run(["caddy", "version"], capture=True, check=False, timeout=10)
+    version = _caddy_version_tuple((result.stdout or "") + "\n" + (result.stderr or ""))
+    return "basic_auth" if version >= (2, 8, 0) else "basicauth"
+
+
 def caddy_hash_password(runner: Runner, password: str) -> str:
     if runner.dry_run:
         return "DRY_RUN_HASH"
@@ -55,9 +70,10 @@ def caddy_hash_password(runner: Runner, password: str) -> str:
     return result.stdout.strip()
 
 
-def render_caddy_block(config: CustomerConfig, pass_hash: str) -> str:
+def render_caddy_block(config: CustomerConfig, pass_hash: str, *, auth_directive: str = "basicauth") -> str:
     template = asset_path("proxy", "Caddyfile.tmpl").read_text(encoding="utf-8")
     values = {
+        "GOOROS_BASIC_AUTH_DIRECTIVE": auth_directive,
         "GOOROS_ACME_EMAIL": config.acme_email,
         "GOOROS_DASH_USER": config.dash_user,
         "GOOROS_DASH_PASS_HASH": pass_hash,
@@ -80,7 +96,7 @@ def merge_managed_block(existing: str, block: str) -> str:
 
 def install_public_proxy(runner: Runner, paths: InstallPaths, config: CustomerConfig, pass_hash: str) -> None:
     install_caddy_if_missing(runner)
-    block = render_caddy_block(config, pass_hash)
+    block = render_caddy_block(config, pass_hash, auth_directive=caddy_basic_auth_directive(runner))
     caddyfile = Path("/etc/caddy/Caddyfile")
     if runner.dry_run:
         runner.log(f"would merge managed Caddy block into {caddyfile}")
@@ -148,7 +164,7 @@ def write_system_env(runner: Runner, paths: InstallPaths, config: CustomerConfig
     runner.run(prefix + ["install", "-m", "0600", str(tmp), "/etc/gooros/hermes-mission-control.env"])
 
 
-def verify_public_proxy(runner: Runner, config: CustomerConfig) -> list[str]:
+def verify_public_proxy(runner: Runner, config: CustomerConfig, *, auth_password: str = "") -> list[str]:
     failures: list[str] = []
     for label in ("mission", "hermes", "router"):
         host = sslip_name(label, config.public_ip)
@@ -156,11 +172,44 @@ def verify_public_proxy(runner: Runner, config: CustomerConfig) -> list[str]:
         code = (result.stdout or "").strip()
         if code != "401":
             failures.append(f"{host} without credentials returned {code}, expected 401")
+    if auth_password:
+        checks = {
+            "mission": "/",
+            "hermes": "/",
+            "router": "/dashboard",
+        }
+        for label, path in checks.items():
+            host = sslip_name(label, config.public_ip)
+            result = runner.run(
+                [
+                    "curl",
+                    "-k",
+                    "-L",
+                    "-s",
+                    "-o",
+                    "/dev/null",
+                    "-w",
+                    "%{http_code}",
+                    "-u",
+                    f"{config.dash_user}:{auth_password}",
+                    f"https://{host}{path}",
+                ],
+                capture=True,
+                check=False,
+                timeout=30,
+            )
+            code = (result.stdout or "").strip()
+            if code != "200":
+                failures.append(f"{host}{path} with credentials returned {code}, expected 200")
     return failures
 
 
 def router_local_api_key(paths: InstallPaths) -> str:
     return read_env_values(paths.secrets_env).get("GOOROS_9ROUTER_API_KEY", "")
+
+
+def router_initial_password(paths: InstallPaths) -> str:
+    return read_env_values(paths.secrets_env).get("GOOROS_9ROUTER_INITIAL_PASSWORD", "")
 
 
 def ensure_router_secrets(paths: InstallPaths, config: CustomerConfig) -> dict[str, str]:

@@ -5,6 +5,8 @@ DEFAULT_REPO_URL="https://github.com/striverai/gooros.git"
 REPO_URL="${GOOROS_HERMES_REPO:-$DEFAULT_REPO_URL}"
 INSTALL_DIR="${GOOROS_HERMES_SOURCE:-$HOME/.local/share/gooros/hermes-mission-control/repo}"
 REF="${GOOROS_HERMES_REF:-main}"
+ENV_FILE="${GOOROS_HERMES_ENV_FILE:-}"
+RUN_INSTALL="${GOOROS_HERMES_RUN_INSTALL:-0}"
 
 if [[ "$REPO_URL" == *"<owner>"* || "$REPO_URL" == *"<org>"* ]]; then
   cat >&2 <<'EOF'
@@ -35,12 +37,23 @@ fi
 git -C "$INSTALL_DIR" checkout "$REF"
 python3 -m pip install --user -e "$INSTALL_DIR" >/dev/null 2>&1 || true
 
+if [[ "$RUN_INSTALL" =~ ^(1|true|TRUE|yes|YES)$ ]]; then
+  cmd=(python3 -m gooros_hermes.cli install --yes --with-hermes --with-9router --with-public-dashboards --systemd)
+  if [[ -n "$ENV_FILE" ]]; then
+    cmd+=(--env-file "$ENV_FILE")
+  fi
+  PYTHONPATH="$INSTALL_DIR${PYTHONPATH:+:$PYTHONPATH}" exec "${cmd[@]}"
+fi
+
 cat <<EOF
 Gooros Hermes CLI source is ready at:
   $INSTALL_DIR
 
 Run:
   python3 -m gooros_hermes.cli install --with-hermes --with-9router --with-public-dashboards --systemd
+
+One-shot non-interactive install after preparing ~/gooros-customer.env:
+  GOOROS_HERMES_ENV_FILE=~/gooros-customer.env GOOROS_HERMES_RUN_INSTALL=1 bash install.sh
 
 Or, if the script entry point is on PATH:
   gooros-hermes install --with-hermes --with-9router --with-public-dashboards --systemd

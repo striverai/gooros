@@ -13,7 +13,8 @@ Environment=PATH=%GOOROS_SERVICE_PATH%
 Environment=HOST=127.0.0.1
 Environment=HOSTNAME=127.0.0.1
 Environment=PORT=20128
-ExecStart=%GOOROS_9ROUTER_BIN%
+WorkingDirectory=%GOOROS_9ROUTER_APP_DIR%
+ExecStart=%GOOROS_NODE_BIN% %GOOROS_9ROUTER_SERVER_JS%
 Restart=on-failure
 RestartSec=5
 

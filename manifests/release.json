@@ -1,6 +1,6 @@
 {
   "product": "gooros-hermes-mission-control",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "schema_version": 1,
   "migrations": ["0001_initial", "0002_remove_demo_dashboard_seed_tasks"],
   "release_owned": [

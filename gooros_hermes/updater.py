@@ -25,6 +25,7 @@ from .installer import (
     preflight,
     restart_gateway,
     restart_systemd_services,
+    seed_router_management_env,
     smoke_9router_model,
     wait_for_9router,
     write_model_routing,
@@ -322,10 +323,12 @@ def cmd_apply_staged(args: object) -> int:
     install_orchestrator_rules(paths, config, runner)
     install_profiles(runner, paths, config)
     install_logging(paths, runner)
-    install_telegram_routing(runner, paths, config)
+    install_telegram_routing(runner, paths, config, systemd=systemd)
     install_dashboard(paths, runner)
     if systemd or public:
         write_system_env(runner, paths, config, pass_hash)
+    if with_9router:
+        seed_router_management_env(paths)
     if systemd:
         install_systemd_services(runner, paths, with_9router=with_9router)
     if with_9router:
@@ -336,7 +339,7 @@ def cmd_apply_staged(args: object) -> int:
             write_system_env(runner, paths, config, pass_hash)
         smoke_9router_model(combo_name, api_key)
         configure_hermes_for_9router(runner, paths, combo_name, api_key)
-        restart_gateway(runner)
+        restart_gateway(runner, systemd=systemd)
         if systemd:
             restart_systemd_services(runner, with_9router=True)
     if public:

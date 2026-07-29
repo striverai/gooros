@@ -30,6 +30,14 @@ gooros-hermes install --with-hermes --with-9router --with-public-dashboards --sy
 
 Interactive install prompts for the Telegram bot token, group chat ID, topic thread IDs, public IP, and dashboard auth details. Bot tokens are written only to local secret files, not to this repository.
 
+To bootstrap and install in one non-interactive pass after preparing the env file:
+
+```bash
+GOOROS_HERMES_ENV_FILE=~/gooros-customer.env \
+GOOROS_HERMES_RUN_INSTALL=1 \
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/striverai/gooros/main/install.sh)"
+```
+
 For Codex-assisted or non-interactive customer installs, use a local env file:
 
 ```bash
@@ -110,19 +118,37 @@ Hermes native:   http://127.0.0.1:9119
 9Router:         http://127.0.0.1:20128/dashboard and /v1/models
 ```
 
-For `--with-9router`, the CLI waits for 9Router, creates/reuses a real
-9Router API key via `/api/keys`, builds the `gooros-free-combo` from all
-discoverable free/free-tier models, orders DeepSeek models first, enables
+For `--with-9router`, the CLI waits for 9Router, logs into the local
+management API when dashboard auth is enabled, creates/reuses a real 9Router
+API key via `/api/keys`, and builds the `gooros-free-combo` from the required
+no-auth free model catalogs:
+
+- OpenCode Free (`opencode`, model prefix `oc/...`)
+- MiMo Code Free (`mimo-free`, model prefix `mmf/...`)
+
+The installer calls 9Router's suggested-model catalog endpoints, includes every
+model returned for those two providers, orders DeepSeek models first, enables
 round-robin combo rotation, smoke-tests the combo through
 `/v1/chat/completions`, then switches Hermes root plus every Gooros-managed
 profile to `model.provider=custom`,
 `model.base_url=http://127.0.0.1:20128/v1`, and
 `model.default=gooros-free-combo`.
 On a fresh install, 9Router's initial dashboard password is set to the same
-generated dashboard auth password printed once by the installer.
-If the smoke test fails, connect a working free provider in the 9Router
-dashboard and rerun the install/update. For UI-only emergency updates, set
-`GOOROS_9ROUTER_SMOKE=0` before `gooros-hermes update`.
+generated dashboard auth password printed once by the installer. The installer
+uses that local-only password to log into 9Router management APIs before
+creating/reusing API keys and combos.
+If Gooros cannot fetch either required free catalog, the install/update fails
+before switching Hermes to an incomplete combo. If the smoke test fails, check
+9Router network access/provider status and rerun the install/update. For
+infrastructure-only pilot installs or UI-only emergency updates, set
+`GOOROS_9ROUTER_SMOKE=0` before `gooros-hermes install` or
+`gooros-hermes update`, then re-enable the smoke test after providers work.
+
+Telegram is also made active during install/update: the CLI writes Hermes
+Telegram env/config, installs the `telegram_topic_profiles` plugin, enables
+`multiplex_profiles`, then ensures the Hermes gateway service is installed,
+started, and restarted. `verify` checks the Telegram env, topic map, plugin
+files, and gateway status so a non-chatting bot is reported as a failed install.
 
 ## Safety Contract
 
@@ -178,7 +204,7 @@ This repository is the configured internal pilot release source:
 ```bash
 git remote -v
 git status --short --branch
-TARGET_TAG=v0.1.9
+TARGET_TAG=v0.1.10
 git rev-parse --verify "$TARGET_TAG" >/dev/null 2>&1 || git tag "$TARGET_TAG"
 git push origin main --tags
 ```
