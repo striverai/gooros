@@ -27,7 +27,25 @@ gooros-hermes install --with-hermes --with-9router --with-public-dashboards --sy
 
 Interactive install prompts for the Telegram bot token, group chat ID, topic thread IDs, public IP, and dashboard auth details. Bot tokens are written only to local secret files, not to this repository.
 
-For non-interactive customer installs, set `TELEGRAM_BOT_TOKEN` in the shell and pass the required `--owner-*`, Telegram topic IDs, public IP, and ACME email flags shown below.
+For Codex-assisted or non-interactive customer installs, use a local env file:
+
+```bash
+cp ~/.local/share/gooros/hermes-mission-control/repo/examples/customer.env.example ~/gooros-customer.env
+nano ~/gooros-customer.env
+chmod 600 ~/gooros-customer.env
+
+gooros-hermes install \
+  --yes \
+  --env-file ~/gooros-customer.env \
+  --with-hermes \
+  --with-9router \
+  --with-public-dashboards \
+  --systemd
+```
+
+Codex can run the final `gooros-hermes install --env-file ...` command after the customer fills the local file. Do not paste the filled token file into GitHub or chat logs.
+
+You can also set `TELEGRAM_BOT_TOKEN` in the shell and pass values as flags:
 
 ## Fresh Install
 

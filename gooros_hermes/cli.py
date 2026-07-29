@@ -19,6 +19,7 @@ def add_common_paths(parser: argparse.ArgumentParser) -> None:
 
 
 def add_config_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--env-file", help="Read customer install values from a local KEY=VALUE file")
     parser.add_argument("--owner-name")
     parser.add_argument("--owner-work", default="")
     parser.add_argument("--owner-focus", default="")

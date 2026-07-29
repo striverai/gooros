@@ -25,6 +25,29 @@ jobs:
       - name: Smoke test
         run: python tests/smoke.py
 
+      - name: Install plan from env file
+        run: |
+          tmp="$(mktemp -d)"
+          cat > "$tmp/customer.env" <<'ENV'
+          GOOROS_OWNER_NAME="CI Owner"
+          GOOROS_OWNER_WORK="CI"
+          GOOROS_OWNER_FOCUS="Smoke"
+          GOOROS_TIMEZONE="Asia/Ho_Chi_Minh"
+          TELEGRAM_BOT_TOKEN="123456789:CI_TOKEN"
+          TELEGRAM_CHAT_ID="-1001"
+          TELEGRAM_ALLOWED_USERS="42"
+          TELEGRAM_THREAD_SCOUT="11"
+          TELEGRAM_THREAD_SCRIBE="12"
+          TELEGRAM_THREAD_REACH="13"
+          TELEGRAM_THREAD_DEV="14"
+          TELEGRAM_HOME_CHANNEL="telegram:-1001"
+          GOOROS_PUBLIC_IP="203.0.113.10"
+          GOOROS_ACME_EMAIL="ci@example.com"
+          GOOROS_DASH_USER="gooros"
+          GOOROS_MODEL_POLICY="deepseek-free-first"
+          ENV
+          gooros-hermes plan --env-file "$tmp/customer.env" --with-hermes --with-9router --with-public-dashboards
+
       - name: Update plan dry run
         run: |
           tmp="$(mktemp -d)"

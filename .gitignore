@@ -22,4 +22,6 @@ tests/tmp-index.html
 *.db-shm
 customer.yaml
 secrets.env
+gooros-customer.env
+customer-install.env
 agent-mission-control/

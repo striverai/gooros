@@ -3,6 +3,7 @@ from __future__ import annotations
 import getpass
 import os
 import secrets
+import shlex
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -63,26 +64,53 @@ def _arg(args: object, name: str, default: str = "") -> str:
     return str(value).strip() if value not in (None, "") else default
 
 
+def _clean_env_value(value: str) -> str:
+    text = value.strip()
+    try:
+        parsed = shlex.split(text, comments=True, posix=True)
+        if parsed:
+            return " ".join(parsed).strip()
+        return ""
+    except ValueError:
+        return text.strip("\"'")
+
+
+def _env_arg(args: object, name: str, env_file: dict[str, str], env_names: tuple[str, ...], default: str = "") -> str:
+    value = getattr(args, name, None)
+    if value not in (None, ""):
+        return str(value).strip()
+    for env_name in env_names:
+        if env_name in env_file and env_file[env_name] not in (None, ""):
+            return str(env_file[env_name]).strip()
+    for env_name in env_names:
+        value = os.environ.get(env_name)
+        if value not in (None, ""):
+            return str(value).strip()
+    return default
+
+
 def collect_customer_config(args: object, *, interactive: bool) -> CustomerConfig:
     generated_password = secrets.token_urlsafe(24)
+    env_file_path = getattr(args, "env_file", None)
+    env_file = _read_env_file(Path(env_file_path).expanduser()) if env_file_path else {}
     values = {
-        "owner_name": _arg(args, "owner_name"),
-        "owner_work": _arg(args, "owner_work"),
-        "owner_focus": _arg(args, "owner_focus"),
-        "timezone": _arg(args, "timezone", "Asia/Ho_Chi_Minh"),
-        "telegram_chat_id": _arg(args, "telegram_chat_id"),
-        "telegram_bot_token": _arg(args, "telegram_bot_token", os.environ.get("TELEGRAM_BOT_TOKEN", "")),
-        "telegram_allowed_users": _arg(args, "telegram_allowed_users", os.environ.get("TELEGRAM_ALLOWED_USERS", "")),
-        "thread_scout": _arg(args, "thread_scout"),
-        "thread_scribe": _arg(args, "thread_scribe"),
-        "thread_reach": _arg(args, "thread_reach"),
-        "thread_dev": _arg(args, "thread_dev"),
-        "telegram_home_channel": _arg(args, "telegram_home_channel"),
-        "public_ip": _arg(args, "public_ip"),
-        "acme_email": _arg(args, "acme_email"),
-        "dash_user": _arg(args, "dash_user", "gooros"),
-        "dash_password": _arg(args, "dash_password", generated_password),
-        "model_policy": _arg(args, "model_policy", "deepseek-free-first"),
+        "owner_name": _env_arg(args, "owner_name", env_file, ("GOOROS_OWNER_NAME", "OWNER_NAME")),
+        "owner_work": _env_arg(args, "owner_work", env_file, ("GOOROS_OWNER_WORK", "OWNER_WORK")),
+        "owner_focus": _env_arg(args, "owner_focus", env_file, ("GOOROS_OWNER_FOCUS", "OWNER_FOCUS")),
+        "timezone": _env_arg(args, "timezone", env_file, ("GOOROS_TIMEZONE", "TIMEZONE"), "Asia/Ho_Chi_Minh"),
+        "telegram_chat_id": _env_arg(args, "telegram_chat_id", env_file, ("TELEGRAM_CHAT_ID", "GOOROS_TELEGRAM_CHAT_ID")),
+        "telegram_bot_token": _env_arg(args, "telegram_bot_token", env_file, ("TELEGRAM_BOT_TOKEN", "GOOROS_TELEGRAM_BOT_TOKEN")),
+        "telegram_allowed_users": _env_arg(args, "telegram_allowed_users", env_file, ("TELEGRAM_ALLOWED_USERS", "GOOROS_TELEGRAM_ALLOWED_USERS")),
+        "thread_scout": _env_arg(args, "thread_scout", env_file, ("TELEGRAM_THREAD_SCOUT", "GOOROS_THREAD_SCOUT", "THREAD_SCOUT")),
+        "thread_scribe": _env_arg(args, "thread_scribe", env_file, ("TELEGRAM_THREAD_SCRIBE", "GOOROS_THREAD_SCRIBE", "THREAD_SCRIBE")),
+        "thread_reach": _env_arg(args, "thread_reach", env_file, ("TELEGRAM_THREAD_REACH", "GOOROS_THREAD_REACH", "THREAD_REACH")),
+        "thread_dev": _env_arg(args, "thread_dev", env_file, ("TELEGRAM_THREAD_DEV", "GOOROS_THREAD_DEV", "THREAD_DEV")),
+        "telegram_home_channel": _env_arg(args, "telegram_home_channel", env_file, ("TELEGRAM_HOME_CHANNEL", "GOOROS_TELEGRAM_HOME_CHANNEL")),
+        "public_ip": _env_arg(args, "public_ip", env_file, ("GOOROS_PUBLIC_IP", "PUBLIC_IP")),
+        "acme_email": _env_arg(args, "acme_email", env_file, ("GOOROS_ACME_EMAIL", "ACME_EMAIL")),
+        "dash_user": _env_arg(args, "dash_user", env_file, ("GOOROS_DASH_USER", "DASH_USER"), "gooros"),
+        "dash_password": _env_arg(args, "dash_password", env_file, ("GOOROS_DASH_PASSWORD", "DASH_PASSWORD"), generated_password),
+        "model_policy": _env_arg(args, "model_policy", env_file, ("GOOROS_MODEL_POLICY", "MODEL_POLICY"), "deepseek-free-first"),
     }
     if interactive:
         values["owner_name"] = _prompt("Owner name", values["owner_name"])
@@ -146,7 +174,7 @@ def _read_env_file(path: Path) -> dict[str, str]:
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, value = line.split("=", 1)
-        values[key.strip().lstrip("\ufeff")] = value.strip()
+        values[key.strip().lstrip("\ufeff")] = _clean_env_value(value)
     return values
 
 
