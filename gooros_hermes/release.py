@@ -50,6 +50,9 @@ def validate_release_manifest(source_root: Path, manifest: dict[str, object]) ->
     for rel in manifest.get("release_owned", []) if isinstance(manifest.get("release_owned"), list) else []:
         if isinstance(rel, str) and not (source_root / rel).exists():
             errors.append(f"release_owned path does not exist in source: {rel}")
+    for migration_id in migration_ids(manifest):
+        if not (source_root / "migrations" / f"{migration_id}.py").exists():
+            errors.append(f"migration listed in manifest but missing: {migration_id}")
     if errors:
         raise RuntimeError("release manifest failed validation:\n- " + "\n- ".join(errors))
 

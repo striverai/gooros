@@ -3,6 +3,7 @@ from __future__ import annotations
 import compileall
 import sys
 import tempfile
+import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,8 +26,14 @@ def main() -> int:
     ok = compileall.compile_dir(ROOT / "gooros_hermes", quiet=1)
     ok = compileall.compile_dir(ROOT / "migrations", quiet=1) and ok
     ok = compileall.compile_file(str(ROOT / "assets" / "dashboard" / "server.py"), quiet=1) and ok
-    validate_release_manifest(ROOT, read_release_manifest(ROOT))
+    manifest = read_release_manifest(ROOT)
+    validate_release_manifest(ROOT, manifest)
     assert __version__ == VERSION
+    assert manifest["version"] == VERSION
+    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    assert pyproject["project"]["version"] == VERSION
+    for migration_id in manifest["migrations"]:
+        assert (ROOT / "migrations" / f"{migration_id}.py").exists()
     assert (ROOT / "assets" / "dashboard" / "gooros-logo.png").exists()
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "index.html"

@@ -11,9 +11,12 @@ Safe installer/updater for a 5-agent Hermes Mission Control setup:
 - 9Router dashboard and local OpenAI-compatible endpoint.
 - Optional public HTTPS URLs through sslip.io + Caddy + auth.
 
+For controlled customer pilots, use [INTERNAL_PILOT.md](INTERNAL_PILOT.md)
+as the release, install, verify, and rollback checklist.
+
 ## Install From GitHub
 
-After publishing this repository, customers can bootstrap the CLI from GitHub:
+Internal pilot customers can bootstrap the CLI from the configured GitHub release source:
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/striverai/gooros/main/install.sh)"
@@ -140,7 +143,7 @@ gooros-hermes verify --public --with-9router
 
 ## Upgrade
 
-Customers upgrade like an open-source CLI:
+Customers upgrade through the Git-backed CLI:
 
 ```bash
 gooros-hermes update
@@ -164,16 +167,17 @@ Manual rollback preserves customer DB/content by default. Use `--restore-data` o
 
 `auth rotate` is still scaffolded and must be completed before publishing public dashboard password rotation.
 
-## Publish To GitHub
+## Release Source
 
-Create an empty GitHub repository, then push this local repo:
+This repository is the configured internal pilot release source:
 
 ```bash
-git remote add origin https://github.com/striverai/gooros.git
-git branch -M main
-git push -u origin main
-git tag v0.1.0
-git push origin v0.1.0
+git remote -v
+git status --short --branch
+TARGET_TAG=v0.1.8
+git rev-parse --verify "$TARGET_TAG" >/dev/null 2>&1 || git tag "$TARGET_TAG"
+git push origin main --tags
 ```
 
-The repository is configured for public installs from `striverai/gooros`.
+Do not give customers an install command until the target commit is clean,
+tagged, pushed, and the internal pilot checklist passes.
