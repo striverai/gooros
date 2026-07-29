@@ -39,13 +39,13 @@ def build_live_dashboard(template_path: Path, output_path: Path) -> None:
     )
     text = _replace_required(
         text,
-        "  let text = DEMO_CONTENT_TEXT[d.agent+'|'+d.filename] || ('# '+(d.title||'Untitled')+'\\n\\n_(template preview — content is hard-coded)_');",
+        "  let text = DEMO_CONTENT_TEXT[d.agent+'|'+d.filename] || ('# '+(d.title||'Untitled')+'\\n\\n_(preview mode — sample content)_');",
         "  let text = (await (await fetch('/api/content/read?agent='+encodeURIComponent(d.agent)+'&file='+encodeURIComponent(d.filename), {cache:'no-store'})).json()).text || '';",
     )
     text = _replace_required(
         text,
-        "  document.getElementById('doc-del').onclick = async ()=>{ if(!confirm('Delete this document?'))return; const i=DEMO_CONTENT_DOCS.findIndex(x=>x.agent===d.agent&&x.filename===d.filename); if(i>=0) DEMO_CONTENT_DOCS.splice(i,1); CONTENT_SEL=null; loadContentDocs(); };",
-        "  document.getElementById('doc-del').onclick = async ()=>{ if(!confirm('Delete this document?'))return; await fetch('/api/content/delete?agent='+encodeURIComponent(d.agent)+'&file='+encodeURIComponent(d.filename), {method:'POST'}); CONTENT_SEL=null; loadContentDocs(); };",
+        "  document.getElementById('doc-del').onclick = async ()=>{ if(!confirm(translateText('Delete this document?', CURRENT_LANG)))return; const i=DEMO_CONTENT_DOCS.findIndex(x=>x.agent===d.agent&&x.filename===d.filename); if(i>=0) DEMO_CONTENT_DOCS.splice(i,1); CONTENT_SEL=null; loadContentDocs(); };",
+        "  document.getElementById('doc-del').onclick = async ()=>{ if(!confirm(translateText('Delete this document?', CURRENT_LANG)))return; await fetch('/api/content/delete?agent='+encodeURIComponent(d.agent)+'&file='+encodeURIComponent(d.filename), {method:'POST'}); CONTENT_SEL=null; loadContentDocs(); };",
     )
     text = _replace_required(
         text,
@@ -65,7 +65,7 @@ def build_live_dashboard(template_path: Path, output_path: Path) -> None:
     )
     canned_block = """    await new Promise(r=>setTimeout(r,650));
     reply.typing=false;
-    const canned = chatMeta(key).name+' (template preview): this is a hard-coded reply. Once the tutorial prompts wire the backend, every message runs a real agent turn — threaded into the live Telegram session for Aria.';
+    const canned = chatMeta(key).name+' (preview mode): this is a sample reply. Once the tutorial prompts wire the backend, every message runs a real agent turn — threaded into the live Telegram session for Aria.';
     const words = canned.split(' ');
     for(let i=0;i<words.length;i++){ reply.text += (i?' ':'')+words[i]; if(CHAT_CUR===key) renderMessages(); await new Promise(r=>setTimeout(r,42)); }
     reply.ts=Date.now();
@@ -96,7 +96,7 @@ def build_live_dashboard(template_path: Path, output_path: Path) -> None:
     )
     text = _replace_required(
         text,
-        "    alert('Template preview — cron actions (run / pause / resume / delete) get wired to Gooros later by the tutorial prompts.');",
+        "    alert(translateText('Preview mode — cron actions (run / pause / resume / delete) get wired to Gooros later by the tutorial prompts.', CURRENT_LANG));",
         "    await fetch('/api/cron/action?action='+encodeURIComponent(action)+'&id='+encodeURIComponent(id), {method:'POST'}); await loadSchedule();",
     )
 
@@ -165,7 +165,7 @@ def _open_agent_function() -> str:
     drawerBody.innerHTML = '<div class="font-mono text-[11px] text-muted-foreground uppercase tracking-widest py-10 text-center">loadingâ€¦</div>';
     try {
       const a = await (await fetch('/api/agent?key='+encodeURIComponent(key), {cache:'no-store'})).json();
-      if(a.error){ drawerBody.innerHTML = '<p class="text-muted-foreground">Not found.</p>'; return; }
+      if(a.error){ drawerBody.innerHTML = '<p class="text-muted-foreground">Not found.</p>'; syncLanguage(); return; }
       const modelBars = (a.models||[]).map(m => {
         const pct = a.total ? Math.round(100*m.count/a.total) : 0;
         return `<div class="flex items-center gap-2 mb-1.5"><span class="font-mono text-[10px] text-ink w-28 truncate">${esc2(m.model)}</span>
@@ -195,5 +195,6 @@ def _open_agent_function() -> str:
         <div><div class="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Recent tasks</div>${rows}</div>`;
       lucide.createIcons();
       document.getElementById('agent-drawer-x').addEventListener('click', closeDrawer);
-    } catch(e){ drawerBody.innerHTML = '<p class="text-muted-foreground">Failed to load.</p>'; }
+      syncLanguage();
+    } catch(e){ drawerBody.innerHTML = '<p class="text-muted-foreground">Failed to load.</p>'; syncLanguage(); }
   }"""

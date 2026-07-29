@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="en">
+<html lang="vi">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Gooros — Agent Mission Control</title>
-<meta name="description" content="Operator console for the Gooros agentic platform: 5 autonomous agents, live orchestration, telemetry, missions and ledger." />
+<meta name="description" content="Dashboard vận hành Gooros Mission Control: 5 autonomous agents, orchestration trực tiếp, telemetry, missions và ledger." />
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -181,12 +181,20 @@ tailwind.config = {
       <button class="hidden md:grid size-10 rounded-full bg-cream border border-border place-items-center hover:border-ink/40 transition-colors">
         <i data-lucide="bell" class="size-4 text-ink" stroke-width="1.75"></i>
       </button>
+      <button id="lang-toggle" type="button" title="Switch language" class="hidden md:inline-flex h-10 items-center gap-2 rounded-full bg-cream border border-border px-3 font-mono text-[10px] uppercase tracking-wider text-ink hover:border-ink/40 transition-colors">
+        <i data-lucide="languages" class="size-3.5" stroke-width="1.75"></i>
+        <span data-lang-current>VI</span>
+      </button>
       <div class="hidden md:flex flex-col items-end leading-tight pl-2">
         <span class="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">UTC</span>
         <span id="utc-clock" class="font-mono text-[12px] tabular-nums text-ink">--:--:--</span>
       </div>
 
       <div class="ml-auto md:hidden flex items-center gap-2">
+        <button id="lang-toggle-m" type="button" title="Switch language" class="inline-flex h-10 items-center gap-1.5 rounded-full bg-cream border border-border px-2.5 font-mono text-[10px] uppercase tracking-wider text-ink hover:border-ink/40 transition-colors">
+          <i data-lucide="languages" class="size-3.5" stroke-width="1.75"></i>
+          <span data-lang-current>VI</span>
+        </button>
         <span id="utc-clock-m" class="font-mono text-[11px] tabular-nums text-ink px-2.5 py-1.5 rounded-full bg-cream border border-border">--:--:--</span>
         <button id="menu-btn" aria-label="Open menu" class="size-10 rounded-full bg-ink text-cream grid place-items-center hover:bg-ember transition-colors">
           <i id="menu-icon" data-lucide="menu" class="size-4"></i>
@@ -1044,6 +1052,483 @@ const TABS = [
   { label:'Schedule', to:'#/schedule' },
   { label:'Docs',     to:'#/docs' },
 ];
+
+/* ============== Language ============== */
+const I18N_DEFAULT_LANG = 'vi';
+const I18N_TEXT_SOURCE = new WeakMap();
+const I18N_VI_TEXT = {
+  'Gooros Mission Control': 'Gooros Mission Control',
+  'Search agents, missions, logs…': 'Tìm agents, missions, logs…',
+  'Switch language': 'Chuyển ngôn ngữ',
+  'Open menu': 'Mở menu',
+  'Live · Orchestration Layer': 'Live · Lớp Orchestration',
+  'One orchestrator.': 'Một Orchestrator.',
+  'four specialists.': 'bốn specialist agents.',
+  'Gooros is coordinating': 'Gooros đang điều phối',
+  'Scout · Scribe · Reach · Dev': 'Scout · Scribe · Reach · Dev',
+  'routing every task to': 'đưa từng task tới',
+  'by complexity.': 'theo độ phức tạp.',
+  '● gateway': '● gateway',
+  'telegram': 'telegram',
+  'Recent · Activity': 'Hoạt động · Gần đây',
+  'Agents that': 'Agents tạo ra',
+  'ship work.': 'kết quả thực tế.',
+  '— ACTIVE MISSIONS': '— MISSIONS ĐANG MỞ',
+  'open on the board': 'đang mở trên board',
+  'live': 'live',
+  '— FOCUS': '— TRỌNG TÂM',
+  'The agent carrying the largest share of the workload': 'Agent đang gánh tỷ trọng công việc lớn nhất',
+  '% OF TASKS': '% TỔNG TASKS',
+  '— TASKS RESOLVED · BY AGENT': '— TASKS HOÀN TẤT · THEO AGENT',
+  'All logged runs': 'Tất cả lượt chạy đã ghi nhận',
+  'completed / total': 'hoàn tất / tổng',
+  '— FLEET · ORCHESTRATOR + 4': '— FLEET · ORCHESTRATOR + 4',
+  'Per-agent state & throughput': 'Trạng thái & throughput theo từng agent',
+  '— BUILD': '— KHỞI TẠO',
+  'Spin up': 'Khởi tạo',
+  'a new agent': 'một agent mới',
+  '/ click + above': '/ bấm + ở trên',
+  '— INFERENCE LEDGER · MODEL ROUTING': '— INFERENCE LEDGER · MODEL ROUTING',
+  'Tasks routed by complexity · real runs': 'Task được route theo độ phức tạp · dữ liệu chạy thật',
+  '— models': '— models',
+  'tokens': 'tokens',
+  'across all logged runs': 'trên toàn bộ lượt chạy đã ghi nhận',
+  'Offloaded to fast model': 'Chuyển tải sang fast model',
+  'Complexity routing': 'Routing theo độ phức tạp',
+  'Model': 'Model',
+  'Tasks / share': 'Tasks / tỷ trọng',
+  '— Gooros / V4': '— Gooros / V4',
+  'It will change': 'Thay đổi cách',
+  'the way you': 'đội ngũ của bạn',
+  'orchestrate.': 'điều phối.',
+  'just start running / agents': 'bắt đầu vận hành / agents',
+  'Gooros Core · v4.2.1': 'Gooros Core · v4.2.1',
+  'Channel · Secure': 'Channel · Bảo mật',
+  'Operator 01 · Tier IV': 'Operator 01 · Tier IV',
+  'Fleet · Configuration': 'Fleet · Cấu hình',
+  'Five agents.': 'Năm agents.',
+  'one console.': 'một console.',
+  'Inspect each specialist, route them to the right model, and watch the heatbeat of the entire fleet in one place.': 'Theo dõi từng specialist, route đúng model và nắm nhịp vận hành của toàn fleet tại một nơi.',
+  'tasks logged': 'tasks đã ghi nhận',
+  'avg success': 'tỷ lệ thành công TB',
+  'routed to fast': 'route sang fast model',
+  '— TASK SUMMARY · 24H': '— TÓM TẮT TASK · 24H',
+  'Throughput across the specialist fleet': 'Throughput của specialist fleet',
+  'Total tasks': 'Tổng tasks',
+  '↗ +12% vs yesterday': '↗ +12% so với hôm qua',
+  'Avg success': 'Thành công TB',
+  '5-agent rolling avg': 'trung bình trượt của 5 agents',
+  '— MODEL ROUTING': '— MODEL ROUTING',
+  'Route each agent': 'Route từng agent',
+  'to its best brain.': 'đến model phù hợp nhất.',
+  '5 agents · 7 models': '5 agents · 7 models',
+  '/ changes apply on next task dispatch': '/ thay đổi áp dụng từ task kế tiếp',
+  '— ACTIVITY HEATMAP · 7d × 24h': '— HEATMAP HOẠT ĐỘNG · 7 ngày × 24h',
+  'When the fleet is busiest, UTC': 'Khung giờ fleet bận nhất, theo UTC',
+  'cool': 'thấp',
+  'hot': 'cao',
+  'Peak hour': 'Giờ cao điểm',
+  'Quietest': 'Yên nhất',
+  'Weekday avg': 'TB ngày làm việc',
+  '— TASK DISTRIBUTION': '— PHÂN BỔ TASK',
+  'Share of total cycles': 'Tỷ trọng trên tổng chu kỳ',
+  '— AGENT LOGS · RECENT': '— AGENT LOGS · GẦN ĐÂY',
+  'Every logged run across the fleet': 'Mọi lượt chạy đã ghi nhận trên toàn fleet',
+  'Time': 'Thời gian',
+  'Agent': 'Agent',
+  'Task': 'Task',
+  'Status': 'Trạng thái',
+  'Mission Board ·': 'Mission Board ·',
+  'active': 'đang chạy',
+  'Every mission,': 'Mọi mission,',
+  'in motion.': 'đều đang được theo dõi.',
+  "Drag a card between columns to move it through your workflow. This is your personal task board — capture what you're working on, set priorities, and track it to done.": 'Kéo thẻ giữa các cột để cập nhật quy trình làm việc. Đây là task board cá nhân của bạn: ghi lại việc đang làm, đặt ưu tiên và theo dõi đến khi hoàn tất.',
+  'To do': 'Cần làm',
+  'In progress': 'Đang làm',
+  'Done': 'Hoàn tất',
+  'New mission': 'Mission mới',
+  'P1 · Critical': 'P1 · Khẩn cấp',
+  'P2 · High': 'P2 · Cao',
+  'P3 · Normal': 'P3 · Bình thường',
+  'Create': 'Tạo',
+  'Cancel': 'Hủy',
+  'The Empire · Live skyline': 'Empire · Skyline trực tiếp',
+  'A city built by': 'Một thành phố được xây bởi',
+  'agents.': 'agents.',
+  'Every specialist owns a tower. The orchestrator runs HQ at the center. Lit windows mean live work. Drag to orbit, scroll to zoom, click a building to open its dossier.': 'Mỗi specialist có một tòa tháp riêng. Orchestrator vận hành HQ ở trung tâm. Cửa sổ sáng nghĩa là có việc đang chạy. Kéo để xoay, cuộn để zoom, bấm vào tòa nhà để mở hồ sơ.',
+  'Buildings': 'Tòa nhà',
+  'Lights on': 'Đèn sáng',
+  'Tasks': 'Tasks',
+  'Drag · Scroll · Click': 'Kéo · Cuộn · Bấm',
+  'Booting the empire…': 'Đang khởi động Empire…',
+  'First visit compiles the 3D engine (≈10s). If this lingers, hard-reload the page.': 'Lần mở đầu tiên cần biên dịch 3D engine (khoảng 10 giây). Nếu quá lâu, hãy hard-reload trang.',
+  '— AGENT OUTPUT': '— AGENT OUTPUT',
+  'Library.': 'Thư viện.',
+  'New Doc': 'Tài liệu mới',
+  'Total Docs': 'Tổng tài liệu',
+  'Agents Writing': 'Agents đang viết',
+  'Latest': 'Mới nhất',
+  'Select a document to read': 'Chọn tài liệu để đọc',
+  'No documents yet.': 'Chưa có tài liệu.',
+  'loading…': 'đang tải…',
+  'Save': 'Lưu',
+  'Edit': 'Sửa',
+  'Download': 'Tải xuống',
+  'Delete': 'Xóa',
+  '— AUTOMATION': '— TỰ ĐỘNG HÓA',
+  'Schedule.': 'Lịch chạy.',
+  'Refresh': 'Làm mới',
+  'Gooros Jobs': 'Gooros Jobs',
+  'Active': 'Đang chạy',
+  'Next Run': 'Lần chạy tiếp theo',
+  '— GOOROS JOBS': '— GOOROS JOBS',
+  'Agent-driven scheduled tasks · run, pause, resume or delete': 'Scheduled tasks do agents vận hành · chạy, tạm dừng, tiếp tục hoặc xóa',
+  'Run': 'Chạy',
+  'Pause': 'Tạm dừng',
+  'Resume': 'Tiếp tục',
+  'No Gooros jobs yet — create one from the automation CLI': 'Chưa có Gooros jobs — hãy tạo từ automation CLI',
+  '— DIRECT LINE': '— KÊNH TRAO ĐỔI TRỰC TIẾP',
+  'Talk to the fleet.': 'Trao đổi với fleet.',
+  'idle': 'chờ',
+  'error': 'lỗi',
+  'Documentation · How this dashboard works': 'Hướng dẫn · Cách dashboard vận hành',
+  'Know every corner.': 'Nắm rõ từng khu vực.',
+  'A plain-language guide to every tab, panel, and number on your Gooros Mission Control dashboard — what it shows, where the data comes from, and how to use it. Nothing here is invented: every figure traces back to your real Gooros activity or to your own local files.': 'Hướng dẫn ngắn gọn cho từng tab, panel và chỉ số trong Gooros Mission Control dashboard: đang hiển thị gì, dữ liệu đến từ đâu và dùng thế nào. Không có số liệu bịa đặt: mọi chỉ số đều truy về hoạt động Gooros thật hoặc file local của bạn.',
+  'Overview': 'Tổng quan',
+  'Agents': 'Agents',
+  'Chat': 'Chat',
+  'Office': 'Office',
+  'Content': 'Content',
+  'Schedule': 'Lịch',
+  'Docs': 'Hướng dẫn',
+  'Data & safety': 'Dữ liệu & an toàn',
+  'Controls': 'Điều khiển',
+  'Tab · Overview': 'Tab · Tổng quan',
+  'Your fleet at a glance': 'Toàn cảnh fleet',
+  'The landing screen — one live snapshot of the whole system: health, load, output, and cost. It refreshes on its own every few seconds, so what you see is always current.': 'Màn hình tổng quan cung cấp ảnh chụp trực tiếp của toàn hệ thống: sức khỏe, tải, kết quả và chi phí. Dữ liệu tự làm mới mỗi vài giây để luôn bám sát thực tế.',
+  'Gateway & Telegram status': 'Trạng thái gateway & Telegram',
+  'The pills at the top show whether your Gooros gateway is running and whether Telegram is connected. They flip the moment either changes.': 'Các nhãn phía trên cho biết gateway Gooros có đang chạy và Telegram có đang kết nối hay không. Trạng thái đổi ngay khi hệ thống thay đổi.',
+  'Active Missions': 'Missions đang mở',
+  'How many tasks are live on your board right now (To do + In progress) and how many are already done — a quick read on your workload.': 'Số tasks đang mở trên board (Cần làm + Đang làm) và số tasks đã hoàn tất, giúp đọc nhanh khối lượng công việc.',
+  'VPS line (CPU · RAM · Disk)': 'VPS line (CPU · RAM · Disk)',
+  'Live health of the server the dashboard runs on, sampled directly on the machine — no guesswork. If a number climbs, you know before it becomes a problem.': 'Tình trạng server chạy dashboard được lấy trực tiếp từ máy, không ước đoán. Khi chỉ số tăng bất thường, bạn thấy trước khi thành sự cố.',
+  'Focus ring': 'Vòng trọng tâm',
+  'A single gauge for how concentrated the fleet\'s recent work is — a fast "how loaded is the system" read without digging into per-agent numbers.': 'Một chỉ báo cho biết công việc gần đây của fleet đang tập trung vào đâu, giúp đọc nhanh mức tải hệ thống mà không phải mở từng agent.',
+  'Tasks Resolved · by agent': 'Tasks hoàn tất · theo agent',
+  'Total completed agent runs and the overall success rate. This is real activity — every row is an actual agent run that was logged.': 'Tổng lượt chạy agent đã hoàn tất và tỷ lệ thành công tổng thể. Đây là hoạt động thật: mỗi dòng là một lượt chạy agent được ghi nhận.',
+  'Inference Ledger · Model Routing': 'Inference Ledger · Model Routing',
+  'Total tokens used and, if you\'ve enabled the optional routing add-on, the split between your premium and fast models plus the "offload %" (the share sent to the cheaper/faster model). Without routing it simply shows which models your agents actually used. It never shows a made-up "money saved" figure.': 'Tổng tokens đã dùng và, nếu bật routing add-on, tỷ trọng giữa premium model và fast model cùng "offload %" (phần được chuyển sang model nhanh/rẻ hơn). Nếu chưa bật routing, dashboard chỉ hiển thị model agents thực sự dùng, không tự bịa số "tiết kiệm".',
+  'Activity ticker': 'Dòng hoạt động',
+  'A live scroll of the most recent things your agents did — the newest actions first, updating as work happens.': 'Dòng cập nhật trực tiếp các việc agents vừa thực hiện, mới nhất ở trước và tự cập nhật khi có hoạt động.',
+  'Tab · Agents': 'Tab · Agents',
+  'Every specialist, measured': 'Đo hiệu suất từng specialist',
+  'The performance view for your five agents — the Orchestrator plus Scout, Scribe, Reach, and Dev. See who\'s carrying the load, how reliable each one is, and exactly what they\'ve been doing.': 'Màn hình hiệu suất cho 5 agents: Orchestrator cùng Scout, Scribe, Reach và Dev. Xem ai đang gánh tải, độ ổn định ra sao và đang xử lý việc gì.',
+  'Fleet header stats': 'Chỉ số đầu trang của fleet',
+  'Top-line totals for the last 24 hours: tasks logged, average success rate, and the share of work routed to your fast model.': 'Các chỉ số chính trong 24 giờ gần nhất: tasks đã ghi nhận, tỷ lệ thành công trung bình và tỷ trọng công việc route sang fast model.',
+  'Agent cards': 'Thẻ agent',
+  'One card per agent showing its role, its most recent task, its default model, task count, success rate, and a load bar.': 'Mỗi agent có một thẻ hiển thị vai trò, task gần nhất, default model, số task, tỷ lệ thành công và thanh tải.',
+  'Click any card': 'Bấm vào thẻ bất kỳ',
+  'to open its detail drawer.': 'để mở ngăn chi tiết.',
+  'Agent detail drawer': 'Ngăn chi tiết agent',
+  'Slides in from the right with one agent\'s full record: total tasks, success rate, which models it ran on and how often, its most recent tasks, and its last error (if any). Close it with ✕, the Esc key, or by clicking outside.': 'Mở từ bên phải với hồ sơ đầy đủ của một agent: tổng tasks, tỷ lệ thành công, model đã dùng và tần suất, tasks gần đây và lỗi gần nhất nếu có. Đóng bằng ✕, phím Esc hoặc bấm ra ngoài.',
+  'Task Distribution': 'Phân bổ Task',
+  'How the total workload is split across the five agents — at a glance, who is doing most of the work.': 'Cách tổng khối lượng công việc được chia cho 5 agents, giúp nhìn nhanh ai đang xử lý nhiều nhất.',
+  'Agent Logs · Recent': 'Agent Logs · Gần đây',
+  'The raw feed at the bottom of the tab — every logged run as a row: time, agent, task, model, and status (completed / failed). This is the source of truth behind the headline numbers.': 'Luồng dữ liệu thô ở cuối tab: mỗi lượt chạy là một dòng gồm thời gian, agent, task, model và trạng thái (completed / failed). Đây là nguồn sự thật phía sau các chỉ số chính.',
+  'Tab · Chat': 'Tab · Chat',
+  'A direct line to the fleet': 'Kênh trao đổi trực tiếp với fleet',
+  'Talk to any agent right from the dashboard. Every message runs a': 'Trao đổi với bất kỳ agent nào ngay trong dashboard. Mỗi tin nhắn chạy một lượt',
+  'real': 'thật',
+  'agent turn — not a canned reply — threaded into that agent\'s live session with full memory.': 'agent turn, không phải phản hồi mẫu, và được nối vào live session của agent đó với đầy đủ memory.',
+  'The roster': 'Danh sách agents',
+  'Your five agents down the left. Pick one to open its conversation. Each keeps its own memory, so it remembers what you told it before.': 'Năm agents nằm ở cột trái. Chọn một agent để mở cuộc trò chuyện. Mỗi agent giữ memory riêng nên có thể nhớ những gì bạn đã trao đổi trước đó.',
+  'The Orchestrator = your main agent': 'Orchestrator = agent chính',
+  '● telegram thread': '● telegram thread',
+  '. It\'s your default Gooros agent — the one Telegram routes to. When you message it here, both your message and its reply also appear in your Telegram, so the dashboard and your phone stay in sync.': '. Đây là Gooros agent mặc định, cũng là nơi Telegram route tới. Khi nhắn ở đây, tin nhắn và phản hồi cũng xuất hiện trong Telegram để dashboard và điện thoại luôn đồng bộ.',
+  'The specialists': 'Các specialist agents',
+  'Scout, Scribe, Reach, and Dev each resume their own private session with full memory. They don\'t have a Telegram thread — they\'re worked from the dashboard.': 'Scout, Scribe, Reach và Dev tiếp tục session riêng với đầy đủ memory. Các agent này không có Telegram thread riêng và được vận hành từ dashboard.',
+  'Good to know': 'Cần biết',
+  'Sending a message spends tokens because it runs a live turn on your model. History is read straight from your Gooros session; the send goes through your real Gooros agent.': 'Gửi tin nhắn sẽ dùng tokens vì đây là live turn trên model. Lịch sử được đọc trực tiếp từ Gooros session; thao tác gửi đi qua Gooros agent thật.',
+  'Tab · Tasks': 'Tab · Tasks',
+  'Your personal mission board': 'Mission board cá nhân',
+  'This board is': 'Board này là',
+  'yours': 'của bạn',
+  '— your own to-do list, not agent work. Three columns move a task from idea to done. It comes seeded with a couple of example cards per column that you can edit or delete.': '— danh sách việc riêng của bạn, không phải công việc nội bộ của agent. Ba cột giúp chuyển một task từ ý tưởng đến hoàn tất. Board có sẵn vài thẻ mẫu để bạn sửa hoặc xóa.',
+  'The three columns': 'Ba cột làm việc',
+  '(not started),': '(chưa bắt đầu),',
+  '(working on it), and': '(đang xử lý), và',
+  '(completed). The counts in the hero update as you move cards.': '(hoàn tất). Các số ở phần hero tự cập nhật khi bạn di chuyển thẻ.',
+  'New Mission': 'Mission mới',
+  'Add a task with a title, a priority (P1 Critical / P2 High / P3 Normal), and a starting column. It saves instantly and stays after a refresh.': 'Thêm task với tiêu đề, mức ưu tiên (P1 Khẩn cấp / P2 Cao / P3 Bình thường) và cột bắt đầu. Task được lưu ngay và vẫn còn sau khi refresh.',
+  'Drag & drop': 'Kéo & thả',
+  'Drag a card between columns to change its status — the move is saved automatically.': 'Kéo thẻ giữa các cột để đổi trạng thái; thao tác được lưu tự động.',
+  'Search & priority filter': 'Tìm kiếm & lọc ưu tiên',
+  'Find a task by title or id, or filter the board down to a single priority (ALL / P1 / P2 / P3).': 'Tìm task theo tiêu đề hoặc id, hoặc lọc board theo một mức ưu tiên (ALL / P1 / P2 / P3).',
+  'The card & where it lives': 'Thẻ task & nơi lưu dữ liệu',
+  'Each card shows an id, a priority badge (its colour also tints the left edge), tags, a progress bar, and a delete button that appears on hover. Tasks are stored in the dashboard\'s own local database — completely separate from your Gooros runtime data.': 'Mỗi thẻ hiển thị id, nhãn ưu tiên (màu cũng hiện ở viền trái), tags, thanh tiến độ và nút xóa khi hover. Tasks được lưu trong database local riêng của dashboard, tách biệt hoàn toàn với dữ liệu runtime của Gooros.',
+  'Tab · Office': 'Tab · Office',
+  'Your fleet as a living city': 'Fleet như một thành phố đang sống',
+  'A 3D skyline where each agent is a building and the HQ tower sits at the centre. It\'s a fun, glance-able way to see who\'s working right now.': 'Một skyline 3D nơi mỗi agent là một tòa nhà và tháp HQ nằm ở trung tâm. Đây là cách trực quan để biết ai đang làm việc ngay lúc này.',
+  '(The 3D view needs a GPU / WebGL-capable browser.)': '(Chế độ 3D cần GPU hoặc trình duyệt hỗ trợ WebGL.)',
+  'Blue vs. orange': 'Xanh vs. cam',
+  'A tower glows': 'Tòa tháp sáng màu',
+  'blue': 'xanh',
+  'when its agent is actively running a turn, and': 'khi agent đang chạy turn, và',
+  'orange': 'cam',
+  'when idle. Message an agent from the Chat tab and watch its tower light up.': 'khi đang chờ. Nhắn cho agent từ tab Chat và quan sát tòa tháp sáng lên.',
+  'The counters': 'Các chỉ số nhỏ',
+  'The small readouts show how many buildings there are, how many have their lights on (agents currently working), and the day\'s task count.': 'Các chỉ số nhỏ cho biết có bao nhiêu tòa nhà, bao nhiêu tòa đang sáng đèn (agents đang làm việc) và số task trong ngày.',
+  'Tab · Content': 'Tab · Content',
+  'Everything your agents write': 'Toàn bộ nội dung agents tạo ra',
+  'A living library of the long-form work your agents produce — articles, research briefs, scripts, plans. Each agent saves to its own folder, and it all shows up here to read, edit, download, or delete.': 'Thư viện sống cho các nội dung dài mà agents tạo ra: bài viết, research brief, script, kế hoạch. Mỗi agent lưu vào thư mục riêng và tất cả hiển thị tại đây để đọc, sửa, tải xuống hoặc xóa.',
+  'Stats strip': 'Dải chỉ số',
+  'Total documents, how many agents are actively writing, and the most recent piece.': 'Tổng số tài liệu, số agents đang viết và tài liệu mới nhất.',
+  'Reading & filtering': 'Đọc & lọc',
+  'Click any document to read it fully rendered (headings, lists, code, bold). Filter the list by agent to see just one specialist\'s output.': 'Bấm vào tài liệu để đọc bản render đầy đủ (heading, list, code, bold). Lọc theo agent để xem riêng đầu ra của một specialist.',
+  'New Doc · edit · download · delete': 'Tài liệu mới · sửa · tải xuống · xóa',
+  'Create a document yourself, edit any doc in place, download it as Markdown, or remove it. Every action writes straight to disk.': 'Tự tạo tài liệu, sửa trực tiếp, tải xuống dạng Markdown hoặc xóa. Mọi thao tác được ghi thẳng xuống disk.',
+  'Where it lives': 'Nơi dữ liệu được lưu',
+  'Documents are plain Markdown files in the dashboard\'s own': 'Tài liệu là file Markdown thường nằm trong thư mục riêng của dashboard:',
+  'folders — nothing is hidden in a database, and nothing touches your Gooros runtime home.': 'Không có gì bị giấu trong database và không chạm vào Gooros runtime home.',
+  'Tab · Schedule': 'Tab · Lịch',
+  'Automations that run themselves': 'Automation tự vận hành',
+  'Your recurring Gooros jobs — the routines that fire on a schedule (a morning briefing, a weekly brainstorm, and so on) — with the controls to manage them.': 'Các Gooros jobs lặp lại theo lịch, như briefing buổi sáng hoặc brainstorm hằng tuần, kèm các nút điều khiển để quản lý.',
+  'The job list': 'Danh sách jobs',
+  'Each job shows its name, its schedule, the next time it will run, where it delivers, its last status, and the model it uses.': 'Mỗi job hiển thị tên, lịch chạy, lần chạy tiếp theo, nơi gửi kết quả, trạng thái gần nhất và model sử dụng.',
+  'Run · Pause · Resume': 'Chạy · Tạm dừng · Tiếp tục',
+  'Trigger a job now, pause one so it stops firing, or resume a paused one — straight from the card. These actions go through your real Gooros.': 'Chạy job ngay, tạm dừng để job ngừng chạy, hoặc tiếp tục job đang tạm dừng ngay từ thẻ. Các thao tác này đi qua Gooros thật.',
+  'Top counters': 'Chỉ số đầu trang',
+  'How many jobs exist, how many are active, and when the next run is due.': 'Số jobs hiện có, số jobs đang chạy và thời điểm chạy tiếp theo.',
+  'Under the hood · Data & safety': 'Bên dưới hệ thống · Dữ liệu & an toàn',
+  'Real data, kept safe': 'Dữ liệu thật, được giữ an toàn',
+  'A few principles hold across the whole dashboard, so you can trust what you see.': 'Một vài nguyên tắc được áp dụng xuyên suốt dashboard để bạn có thể tin vào dữ liệu đang xem.',
+  'Read-only on your Gooros': 'Read-only với Gooros của bạn',
+  'The dashboard reads your Gooros runtime data (sessions, cron, gateway status)': 'Dashboard chỉ đọc dữ liệu runtime của Gooros (sessions, cron, trạng thái gateway)',
+  'strictly read-only': 'hoàn toàn read-only',
+  '. It never writes to your Gooros runtime home — it cannot corrupt or change your agents\' state.': '. Dashboard không ghi vào Gooros runtime home nên không thể làm hỏng hoặc thay đổi trạng thái agents.',
+  'Its own local files': 'File local riêng',
+  'The only things it writes are its own: your task board, the activity log, your content documents, and timestamped backups. All live inside the dashboard\'s project folder.': 'Dashboard chỉ ghi các dữ liệu thuộc về nó: task board, activity log, tài liệu content và backup có timestamp. Tất cả nằm trong thư mục project của dashboard.',
+  'Nothing fabricated': 'Không bịa số liệu',
+  'Every number traces to a real source — your logs, your sessions, your server. There are no invented stats and no fake "savings" figures anywhere.': 'Mọi con số đều truy được về nguồn thật: logs, sessions hoặc server của bạn. Không có chỉ số tự bịa và không có số "tiết kiệm" giả.',
+  'Private by default': 'Riêng tư mặc định',
+  'The server binds to your machine only (127.0.0.1). You reach it remotely over your private Tailscale link — it is never exposed to the public internet.': 'Server chỉ bind trên máy của bạn (127.0.0.1). Truy cập từ xa qua private Tailscale link và không mở trực tiếp ra internet công cộng.',
+  'Everywhere · The top bar': 'Mọi nơi · Thanh trên cùng',
+  'Controls you\'ll use on every tab': 'Các điều khiển dùng trên mọi tab',
+  'Tab bar': 'Thanh tab',
+  'Switch between Overview, Agents, Chat, Tasks, Office, Content, Schedule, and this Docs page. The active tab is highlighted.': 'Chuyển giữa Tổng quan, Agents, Chat, Tasks, Office, Content, Lịch và trang Hướng dẫn. Tab đang mở sẽ được làm nổi bật.',
+  'Search': 'Tìm kiếm',
+  'Jump to agents, missions, or log entries from anywhere.': 'Tìm nhanh agents, missions hoặc log từ bất kỳ đâu.',
+  'Version badge': 'Nhãn phiên bản',
+  'The small': 'Nhãn nhỏ',
+  'next to the logo tells you which build you\'re looking at. It bumps every time the dashboard is meaningfully updated.': 'bên cạnh logo cho biết bạn đang xem build nào. Phiên bản tăng khi dashboard có cập nhật đáng kể.',
+  'Status & clock': 'Trạng thái & đồng hồ',
+  'A live gateway-status pill and the current UTC time, so you always know the system is connected and what "now" means for the numbers.': 'Nhãn trạng thái gateway trực tiếp và thời gian UTC hiện tại giúp bạn biết hệ thống đang kết nối và mốc "hiện tại" của các chỉ số.',
+  'Coordinator': 'Điều phối',
+  'Research': 'Nghiên cứu',
+  'Writing': 'Soạn thảo',
+  'Engineering': 'Kỹ thuật',
+  'Balanced': 'Cân bằng',
+  'Premium': 'Premium',
+  'Fast': 'Nhanh',
+  'Reasoning': 'Reasoning',
+  'Realtime': 'Realtime',
+  'Executing': 'Đang chạy',
+  'Thinking': 'Đang xử lý',
+  'Retry': 'Thử lại',
+  'Idle': 'Chờ',
+  'Load': 'Tải',
+  'Success': 'Thành công',
+  'Completed': 'Hoàn tất',
+  'Not started': 'Chưa bắt đầu',
+  'Working on it': 'Đang xử lý',
+  'Drop a mission here': 'Thả mission vào đây',
+  'All': 'Tất cả',
+  'Current task': 'Task hiện tại',
+  'State': 'Trạng thái',
+  'Tasks today': 'Tasks hôm nay',
+  'Model history': 'Lịch sử model',
+  'Last error': 'Lỗi gần nhất',
+  'Recent tasks': 'Tasks gần đây',
+  'no runs yet': 'chưa có lượt chạy',
+  'no recent tasks': 'chưa có task gần đây',
+  'Not found.': 'Không tìm thấy.',
+  'Failed to load.': 'Không tải được.',
+  'Clear conversation': 'Xóa hội thoại',
+  'Every message runs a real agent turn.': 'Mỗi tin nhắn chạy một agent turn thật.',
+  'thinking…': 'đang suy nghĩ…',
+  'no active jobs': 'chưa có job đang chạy',
+  'paused': 'tạm dừng',
+  'last: failed': 'lần gần nhất: lỗi',
+  '(script job)': '(script job)',
+  'Run this job now?': 'Chạy job này ngay bây giờ?',
+  'Delete this job permanently? This cannot be undone.': 'Xóa vĩnh viễn job này? Thao tác này không thể hoàn tác.',
+  'Preview mode — cron actions (run / pause / resume / delete) get wired to Gooros later by the tutorial prompts.': 'Bản preview — các thao tác cron (chạy / tạm dừng / tiếp tục / xóa) sẽ được nối vào Gooros ở bước cấu hình sau.',
+  'Delete this document?': 'Xóa tài liệu này?',
+  'Delete mission': 'Xóa mission',
+  'source · gateway_state.json': 'nguồn · gateway_state.json',
+  'source · board.db': 'nguồn · board.db',
+  'source · /proc + statvfs': 'nguồn · /proc + statvfs',
+  'source · agent-logs.db': 'nguồn · agent-logs.db',
+  'source · agent-logs.db (+ optional model-routing.json)': 'nguồn · agent-logs.db (+ optional model-routing.json)',
+  'source · Gooros agent state (read + send)': 'nguồn · trạng thái Gooros agent (read + send)',
+  'source · live working set from the server': 'nguồn · working set trực tiếp từ server',
+  'source · content/ on disk': 'nguồn · content/ trên disk',
+  'source · Gooros cron/jobs.json (read-only)': 'nguồn · Gooros cron/jobs.json (read-only)',
+  'Today': 'Hôm nay',
+  'Tomorrow': 'Ngày mai',
+  'Thu': 'Thứ Năm',
+  'just now': 'vừa xong',
+  'Run now': 'Chạy ngay',
+  'Delete job': 'Xóa job',
+  'Document title…': 'Tiêu đề tài liệu…',
+  'Mission title…': 'Tiêu đề mission…',
+  'Search tasks, IDs…': 'Tìm tasks, ID…',
+  'Message the agent…  (Enter to send · Shift+Enter for newline)': 'Nhắn cho agent…  (Enter để gửi · Shift+Enter xuống dòng)'
+};
+const I18N_VI_ATTR = {
+  'Switch language': 'Chuyển ngôn ngữ',
+  'Open menu': 'Mở menu',
+  'Clear conversation': 'Xóa hội thoại',
+  'Search tasks, IDs…': 'Tìm tasks, ID…',
+  'Mission title…': 'Tiêu đề mission…',
+  'Document title…': 'Tiêu đề tài liệu…',
+  'Message the agent…  (Enter to send · Shift+Enter for newline)': 'Nhắn cho agent…  (Enter để gửi · Shift+Enter xuống dòng)',
+  'Edit': 'Sửa',
+  'Download': 'Tải xuống',
+  'Delete': 'Xóa',
+  'Run now': 'Chạy ngay',
+  'Resume': 'Tiếp tục',
+  'Pause': 'Tạm dừng',
+  'Delete job': 'Xóa job',
+  'Delete mission': 'Xóa mission'
+};
+const I18N_ROUTE_TITLES_VI = {
+  '#/':'Gooros — Tổng quan Mission Control',
+  '#/agents':'Agents — Gooros Mission Control',
+  '#/tasks':'Tasks — Gooros Mission Control',
+  '#/office':'Office — Gooros Mission Control',
+  '#/content':'Content — Gooros Mission Control',
+  '#/schedule':'Lịch — Gooros Automation',
+  '#/chat':'Chat — Trao đổi với fleet',
+  '#/docs':'Hướng dẫn — Gooros dashboard'
+};
+const I18N_STATUS_VI = {
+  running:'đang chạy',
+  connected:'đã kết nối',
+  disconnected:'mất kết nối',
+  stopped:'đã dừng',
+  failed:'lỗi',
+  completed:'hoàn tất',
+  paused:'tạm dừng',
+  active:'đang chạy',
+  idle:'chờ',
+  ok:'ok'
+};
+function getStoredLang(){
+  try {
+    const v = localStorage.getItem('gooros-lang');
+    return v === 'en' || v === 'vi' ? v : I18N_DEFAULT_LANG;
+  } catch (_) { return I18N_DEFAULT_LANG; }
+}
+let CURRENT_LANG = getStoredLang();
+function viStatus(value){
+  const raw = (value || '').toString();
+  return I18N_STATUS_VI[raw.toLowerCase()] || raw;
+}
+function viPattern(text){
+  let m = text.match(/^(\d+) resolved$/); if (m) return `${m[1]} đã xong`;
+  m = text.match(/^(\d+) ok$/); if (m) return `${m[1]} ok`;
+  m = text.match(/^(\d+) runs$/); if (m) return `${m[1]} lượt chạy`;
+  m = text.match(/^(\d+) tasks · (\d+) complex \/ (\d+) simple$/); if (m) return `${m[1]} tasks · ${m[2]} phức tạp / ${m[3]} đơn giản`;
+  m = text.match(/^(\d+) models$/); if (m) return `${m[1]} models`;
+  m = text.match(/^(\d+) agents · (\d+) models$/); if (m) return `${m[1]} agents · ${m[2]} models`;
+  m = text.match(/^(.+) is carrying the largest share of the workload$/); if (m) return `${m[1]} đang xử lý tỷ trọng công việc lớn nhất`;
+  m = text.match(/^gateway (.+)$/); if (m) return `gateway · ${viStatus(m[1])}`;
+  m = text.match(/^telegram · (.+)$/); if (m) return `telegram · ${viStatus(m[1])}`;
+  m = text.match(/^last: (.+)$/); if (m) return `lần gần nhất: ${viStatus(m[1])}`;
+  m = text.match(/^next (.+) · (.+)$/); if (m) return `lần tới ${m[1]} · ${m[2]}`;
+  m = text.match(/^in (\d+)(s|m|h|d|mo)$/); if (m) return `sau ${m[1]}${m[2]}`;
+  m = text.match(/^(\d+)\/(\d+) subtasks$/); if (m) return `${m[1]}/${m[2]} subtasks`;
+  m = text.match(/^Say hello to (.+)$/); if (m) return `Bắt đầu trao đổi với ${m[1]}`;
+  m = text.match(/^(.+) \(preview mode\): this is a sample reply\. Once the tutorial prompts wire the backend, every message runs a real agent turn — threaded into the live Telegram session for Aria\.$/);
+  if (m) return `${m[1]} (preview): đây là phản hồi mẫu. Khi backend được nối xong, mỗi tin nhắn sẽ chạy một agent turn thật và đồng bộ vào live Telegram session.`;
+  m = text.match(/^— FOCUS · (.+)$/); if (m) return `— TRỌNG TÂM · ${m[1]}`;
+  if (text === 'overdue') return 'quá hạn';
+  return null;
+}
+function translateText(text, lang = CURRENT_LANG){
+  if (lang !== 'vi') return text;
+  return I18N_VI_TEXT[text] || viPattern(text) || text;
+}
+function restoreSpacing(source, translated){
+  const leading = (source.match(/^\s*/) || [''])[0];
+  const trailing = (source.match(/\s*$/) || [''])[0];
+  return `${leading}${translated}${trailing}`;
+}
+function translateTextNode(node, lang){
+  if (!node.nodeValue || !node.nodeValue.trim()) return;
+  const parent = node.parentElement;
+  if (parent && parent.closest('script,style,textarea,input,code,pre,#content-body')) return;
+  let source = I18N_TEXT_SOURCE.get(node);
+  if (!source) {
+    source = node.nodeValue;
+    I18N_TEXT_SOURCE.set(node, source);
+  }
+  const normalized = source.trim().replace(/\s+/g, ' ');
+  node.nodeValue = restoreSpacing(source, translateText(normalized, lang));
+}
+function translateAttr(el, attr, lang){
+  if (!el.hasAttribute(attr)) return;
+  const originKey = `data-i18n-origin-${attr}`;
+  if (!el.hasAttribute(originKey)) el.setAttribute(originKey, el.getAttribute(attr) || '');
+  const source = el.getAttribute(originKey) || '';
+  el.setAttribute(attr, lang === 'vi' ? (I18N_VI_ATTR[source] || I18N_VI_TEXT[source] || source) : source);
+}
+function routeTitle(hash = location.hash || '#/'){
+  const key = hash || '#/';
+  return CURRENT_LANG === 'vi'
+    ? (I18N_ROUTE_TITLES_VI[key] || I18N_ROUTE_TITLES_VI['#/'])
+    : (ROUTE_TITLES[key] || ROUTE_TITLES['#/']);
+}
+function updateLangControls(){
+  document.querySelectorAll('[data-lang-current]').forEach(el => { el.textContent = CURRENT_LANG.toUpperCase(); });
+  document.querySelectorAll('#lang-toggle,#lang-toggle-m').forEach(btn => {
+    const next = CURRENT_LANG === 'vi' ? 'English' : 'Tiếng Việt';
+    btn.setAttribute('aria-label', CURRENT_LANG === 'vi' ? 'Switch to English' : 'Chuyển sang tiếng Việt');
+    btn.setAttribute('title', CURRENT_LANG === 'vi' ? `Chuyển sang ${next}` : `Switch to ${next}`);
+  });
+}
+function applyLanguage(lang = CURRENT_LANG){
+  CURRENT_LANG = lang === 'en' ? 'en' : 'vi';
+  document.documentElement.lang = CURRENT_LANG;
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  let node;
+  while ((node = walker.nextNode())) translateTextNode(node, CURRENT_LANG);
+  document.querySelectorAll('[placeholder],[title],[aria-label]').forEach(el => {
+    translateAttr(el, 'placeholder', CURRENT_LANG);
+    translateAttr(el, 'title', CURRENT_LANG);
+    translateAttr(el, 'aria-label', CURRENT_LANG);
+  });
+  document.title = routeTitle(location.hash || '#/');
+  updateLangControls();
+}
+function setLanguage(lang){
+  CURRENT_LANG = lang === 'en' ? 'en' : 'vi';
+  try { localStorage.setItem('gooros-lang', CURRENT_LANG); } catch (_) {}
+  applyLanguage(CURRENT_LANG);
+}
+function toggleLanguage(){ setLanguage(CURRENT_LANG === 'vi' ? 'en' : 'vi'); }
+function bindLanguageToggles(){
+  document.querySelectorAll('#lang-toggle,#lang-toggle-m').forEach(btn => {
+    if (btn.dataset.langBound) return;
+    btn.dataset.langBound = '1';
+    btn.addEventListener('click', toggleLanguage);
+  });
+}
+function syncLanguage(){
+  if (!document.body) return;
+  requestAnimationFrame(() => applyLanguage(CURRENT_LANG));
+}
 document.addEventListener('click', e => { const j = e.target.closest('[data-docjump]'); if (j){ const el = document.getElementById(j.dataset.docjump); if (el) el.scrollIntoView({behavior:'smooth', block:'start'}); } });
 
 /* ============== TopBar tabs ============== */
@@ -1062,6 +1547,7 @@ function renderTabs() {
     if (t.to) mob.insertAdjacentHTML('beforeend', `<a href="${t.to}" class="${mcls}"><span>${t.label}</span><span class="font-mono text-[9px] opacity-60">${active ? '● live' : '→'}</span></a>`);
     else      mob.insertAdjacentHTML('beforeend', `<button disabled class="${mcls} opacity-50 cursor-not-allowed"><span>${t.label}</span><span class="font-mono text-[9px] opacity-60">soon</span></button>`);
   });
+  syncLanguage();
 }
 
 /* ============== Content library ============== */
@@ -1118,6 +1604,7 @@ async function loadContentDocs(){
   const list = CONTENT_DOCS.filter(d=>CONTENT_FILTER==='all'||d.agent===CONTENT_FILTER);
   if(list.length && !CONTENT_SEL) openDoc(list[0]);
   else if(!list.length){ CONTENT_SEL=null; document.getElementById('content-reader').innerHTML = '<div class="grid place-items-center h-full min-h-[360px]"><span class="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">Select a document to read</span></div>'; }
+  syncLanguage();
 }
 
 function renderContentList(){
@@ -1132,6 +1619,7 @@ function renderContentList(){
         <div class="font-mono text-[10px] text-muted-foreground">${cAgo(d.modified_at)}</div></div>
     </li>`;
   }).join('');
+  syncLanguage();
 }
 
 async function openDoc(d){
@@ -1139,7 +1627,7 @@ async function openDoc(d){
   renderContentList();
   const reader = document.getElementById('content-reader');
   reader.innerHTML = '<div class="font-mono text-[11px] uppercase tracking-widest text-muted-foreground py-10 text-center">loading…</div>';
-  let text = DEMO_CONTENT_TEXT[d.agent+'|'+d.filename] || ('# '+(d.title||'Untitled')+'\n\n_(template preview — content is hard-coded)_');
+  let text = DEMO_CONTENT_TEXT[d.agent+'|'+d.filename] || ('# '+(d.title||'Untitled')+'\n\n_(preview mode — sample content)_');
   CONTENT_SEL.text = text;
   const dateM = d.filename.match(/^(\d{4}-\d{2}-\d{2})/);
   reader.innerHTML = `
@@ -1159,7 +1647,8 @@ async function openDoc(d){
   lucide.createIcons();
   document.getElementById('doc-edit').onclick = ()=>editDoc();
   document.getElementById('doc-dl').onclick = ()=>{ const b=new Blob([CONTENT_SEL.text],{type:'text/markdown'}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=d.filename; a.click(); URL.revokeObjectURL(u); };
-  document.getElementById('doc-del').onclick = async ()=>{ if(!confirm('Delete this document?'))return; const i=DEMO_CONTENT_DOCS.findIndex(x=>x.agent===d.agent&&x.filename===d.filename); if(i>=0) DEMO_CONTENT_DOCS.splice(i,1); CONTENT_SEL=null; loadContentDocs(); };
+  document.getElementById('doc-del').onclick = async ()=>{ if(!confirm(translateText('Delete this document?', CURRENT_LANG)))return; const i=DEMO_CONTENT_DOCS.findIndex(x=>x.agent===d.agent&&x.filename===d.filename); if(i>=0) DEMO_CONTENT_DOCS.splice(i,1); CONTENT_SEL=null; loadContentDocs(); };
+  syncLanguage();
 }
 
 function editDoc(){
@@ -1175,6 +1664,7 @@ function editDoc(){
     CONTENT_SEL.text = val; openDoc(d); loadContentDocs();
   };
   document.getElementById('doc-cancel').onclick = ()=>openDoc(d);
+  syncLanguage();
 }
 
 function wireContentOnce(){
@@ -1241,6 +1731,7 @@ function renderRoster(){
         <div class="font-mono text-[9px] uppercase tracking-wider truncate ${sel?'text-cream/60':'text-muted-foreground'}">${last?cEsc((last.text||'').slice(0,26)):a.role}</div></div>
     </button>`;
   }).join('');
+  syncLanguage();
 }
 async function selectChat(key){
   CHAT_CUR = key; renderRoster();
@@ -1266,12 +1757,13 @@ async function selectChat(key){
       }
     }catch(e){}
   }
+  syncLanguage();
 }
 function renderMessages(){
   const box = document.getElementById('chat-messages');
   const hist = CHAT_HIST[CHAT_CUR] || [];
   if(!hist.length){ const a=chatMeta(CHAT_CUR);
-    box.innerHTML = `<div class="grid place-items-center h-full text-center"><div><div class="size-14 mx-auto rounded-2xl grid place-items-center font-mono text-[15px] font-bold text-cream mb-3" style="background:${a.tint}">${a.ini}</div><p class="font-sans text-[14px] text-ink">Say hello to ${a.name}</p><p class="font-mono text-[11px] text-muted-foreground mt-1">Every message runs a real agent turn.</p></div></div>`; return; }
+    box.innerHTML = `<div class="grid place-items-center h-full text-center"><div><div class="size-14 mx-auto rounded-2xl grid place-items-center font-mono text-[15px] font-bold text-cream mb-3" style="background:${a.tint}">${a.ini}</div><p class="font-sans text-[14px] text-ink">Say hello to ${a.name}</p><p class="font-mono text-[11px] text-muted-foreground mt-1">Every message runs a real agent turn.</p></div></div>`; syncLanguage(); return; }
   box.innerHTML = hist.map(m=>{
     if(m.role==='user') return `<div class="flex justify-end"><div class="max-w-[80%]"><div class="rounded-2xl rounded-br-md bg-ink text-cream px-4 py-2.5 font-sans text-[14px] whitespace-pre-wrap break-words">${cEsc(m.text)}</div><div class="font-mono text-[9px] text-muted-foreground mt-1 text-right">${chatTime(m.ts)}</div></div></div>`;
     const a=chatMeta(CHAT_CUR);
@@ -1280,12 +1772,14 @@ function renderMessages(){
       <div class="max-w-[80%]"><div class="rounded-2xl rounded-bl-md bg-cream border border-border text-ink px-4 py-2.5 font-sans text-[14px] whitespace-pre-wrap break-words">${m.typing?typing:cEsc(m.text)}</div><div class="font-mono text-[9px] text-muted-foreground mt-1">${m.typing?'thinking…':chatTime(m.ts)}</div></div></div>`;
   }).join('');
   box.scrollTop = box.scrollHeight;
+  syncLanguage();
 }
 function setChatLive(state){
   const el=document.getElementById('chat-live');
   const map={idle:['#c9bfa8','idle'],live:['#7cc47c','live'],err:['#e5484d','error']};
   const [c,t]=map[state]||map.idle;
   el.innerHTML=`<span class="size-2 rounded-full" style="background:${c}"></span>${t}`;
+  syncLanguage();
 }
 async function sendChat(){
   const key=CHAT_CUR;                     // capture the agent at send time
@@ -1300,7 +1794,7 @@ async function sendChat(){
   try{
     await new Promise(r=>setTimeout(r,650));
     reply.typing=false;
-    const canned = chatMeta(key).name+' (template preview): this is a hard-coded reply. Once the tutorial prompts wire the backend, every message runs a real agent turn — threaded into the live Telegram session for Aria.';
+    const canned = chatMeta(key).name+' (preview mode): this is a sample reply. Once the tutorial prompts wire the backend, every message runs a real agent turn — threaded into the live Telegram session for Aria.';
     const words = canned.split(' ');
     for(let i=0;i<words.length;i++){ reply.text += (i?' ':'')+words[i]; if(CHAT_CUR===key) renderMessages(); await new Promise(r=>setTimeout(r,42)); }
     reply.ts=Date.now();
@@ -1378,6 +1872,7 @@ async function loadSchedule(){
       </div></div>`;
   }).join('');
   lucide.createIcons();
+  syncLanguage();
 }
 
 function wireScheduleOnce(){
@@ -1386,9 +1881,9 @@ function wireScheduleOnce(){
   document.getElementById('sched-gooros').addEventListener('click', async e=>{
     const b = e.target.closest('[data-cron]'); if(!b) return;
     const action = b.dataset.cron, id = b.dataset.id;
-    if(action==='run' && !confirm('Run this job now?')) return;
-    if(action==='delete' && !confirm('Delete this job permanently? This cannot be undone.')) return;
-    alert('Template preview — cron actions (run / pause / resume / delete) get wired to Gooros later by the tutorial prompts.');
+    if(action==='run' && !confirm(translateText('Run this job now?', CURRENT_LANG))) return;
+    if(action==='delete' && !confirm(translateText('Delete this job permanently? This cannot be undone.', CURRENT_LANG))) return;
+    alert(translateText('Preview mode — cron actions (run / pause / resume / delete) get wired to Gooros later by the tutorial prompts.', CURRENT_LANG));
   });
 }
 
@@ -1398,7 +1893,7 @@ function applyRoute() {
   const map = { '#/':'route-overview', '#/agents':'route-agents', '#/tasks':'route-tasks', '#/office':'route-office', '#/content':'route-content', '#/schedule':'route-schedule', '#/chat':'route-chat', '#/docs':'route-docs' };
   const hashKey = location.hash || '#/';
   const id = map[hashKey] || 'route-overview';
-  document.title = ROUTE_TITLES[hashKey] || ROUTE_TITLES['#/'];
+  document.title = routeTitle(hashKey);
   document.querySelectorAll('.route').forEach(el => el.classList.toggle('active', el.id === id));
   renderTabs();
   document.getElementById('mobile-sheet').classList.add('hidden');
@@ -1408,6 +1903,7 @@ function applyRoute() {
   if (id === 'route-content') loadContentDocs();
   if (id === 'route-schedule') loadSchedule();
   if (id === 'route-chat') loadChat();
+  syncLanguage();
   window.scrollTo(0,0);
 }
 window.addEventListener('hashchange', applyRoute);
@@ -1551,6 +2047,7 @@ function renderOverview() {
       <span class="opacity-70">${it.msg}</span>
       <span class="opacity-30">·</span>
     </span>`).join('');
+  syncLanguage();
 }
 
 /* ============== Agents page render ============== */
@@ -1734,6 +2231,7 @@ function renderAgents() {
   }).join('');
 
   lucide.createIcons();
+  syncLanguage();
 }
 
 /* ============== Tasks page ============== */
@@ -1820,6 +2318,7 @@ function renderTasks() {
     el.addEventListener('dragend', () => { DRAG_ID=null; OVER_COL=null; renderTasks(); });
   });
   lucide.createIcons();
+  syncLanguage();
 }
 
 function cardHTML(t, index) {
@@ -1905,11 +2404,12 @@ function renderLegend() {
   document.querySelectorAll('[data-bcode]').forEach(btn => {
     btn.addEventListener('click', () => selectBuilding(btn.dataset.bcode));
   });
+  syncLanguage();
 }
 
 function renderDossier() {
   const mount = document.getElementById('dossier-mount');
-  if (!officeSelected) { mount.innerHTML=''; return; }
+  if (!officeSelected) { mount.innerHTML=''; syncLanguage(); return; }
   const a = ALL_BUILDINGS.find(b=>b.code===officeSelected);
   if (!a) return;
   const isHQ = a.code==='OR';
@@ -1948,6 +2448,7 @@ function renderDossier() {
   </div>`;
   document.getElementById('dossier-close').addEventListener('click', () => selectBuilding(null));
   lucide.createIcons();
+  syncLanguage();
 }
 
 function selectBuilding(code) {
@@ -2438,11 +2939,13 @@ function applyState(d) {
     }
     renderOverview(); renderAgents(); renderTasks();
     lucide.createIcons();
+    syncLanguage();
   } catch (e) { console.warn('hydrate failed', e); }
 }
 
 /* ============== Boot ============== */
 document.addEventListener('DOMContentLoaded', () => {
+  bindLanguageToggles();
   renderTabs();
   renderOverview();
   renderAgents();
@@ -2451,6 +2954,7 @@ document.addEventListener('DOMContentLoaded', () => {
   tickClock();
   setInterval(tickClock, 1000);
   lucide.createIcons();
+  applyLanguage(CURRENT_LANG);
 
   // --- Task board CRUD, backed by SQLite board.db ---
   const nmForm = document.getElementById('new-mission-form');
@@ -2487,6 +2991,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function openAgent(key){
     drawer.classList.remove('hidden');
     drawerBody.innerHTML = '<div class="font-mono text-[11px] text-muted-foreground uppercase tracking-widest py-10 text-center">loading…</div>';
+    syncLanguage();
     try {
       const src = AGENTS.find(x=>x.name.toLowerCase()===key) || AGENTS[0];
       const prem = Math.max(1, Math.round(src.tasksToday*0.6)), fast = Math.max(0, src.tasksToday-prem);
@@ -2529,7 +3034,8 @@ document.addEventListener('DOMContentLoaded', () => {
         <div><div class="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Recent tasks</div>${rows}</div>`;
       lucide.createIcons();
       document.getElementById('agent-drawer-x').addEventListener('click', closeDrawer);
-    } catch(e){ drawerBody.innerHTML = '<p class="text-muted-foreground">Failed to load.</p>'; }
+      syncLanguage();
+    } catch(e){ drawerBody.innerHTML = '<p class="text-muted-foreground">Failed to load.</p>'; syncLanguage(); }
   }
   document.getElementById('agent-drawer-scrim').addEventListener('click', closeDrawer);
   document.addEventListener('keydown', e => { if (e.key==='Escape') closeDrawer(); });

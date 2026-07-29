@@ -10,6 +10,8 @@ sys.path.insert(0, str(ROOT))
 
 from gooros_hermes.dashboard_patcher import build_live_dashboard
 from gooros_hermes.release import read_release_manifest, validate_release_manifest
+from gooros_hermes import __version__
+from gooros_hermes.constants import VERSION
 
 
 GOOROS_LOGO_URL = (
@@ -23,11 +25,17 @@ def main() -> int:
     ok = compileall.compile_dir(ROOT / "migrations", quiet=1) and ok
     ok = compileall.compile_file(str(ROOT / "assets" / "dashboard" / "server.py"), quiet=1) and ok
     validate_release_manifest(ROOT, read_release_manifest(ROOT))
+    assert __version__ == VERSION
     assert (ROOT / "assets" / "dashboard" / "gooros-logo.png").exists()
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "index.html"
         build_live_dashboard(ROOT / "assets" / "dashboard" / "template.html", out)
         text = out.read_text(encoding="utf-8")
+        assert '<html lang="vi">' in text
+        assert "const I18N_DEFAULT_LANG = 'vi';" in text
+        assert 'id="lang-toggle"' in text
+        assert 'id="lang-toggle-m"' in text
+        assert "Gooros — Tổng quan Mission Control" in text
         assert f'<img src="{GOOROS_LOGO_URL}"' in text
         assert '<img src="/gooros-logo.png"' not in text
         old_dashboard_copy = (
