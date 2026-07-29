@@ -11,7 +11,7 @@ DEMO_TOKENS = (
     "DEMO_CHAT",
     "DEMO_CONTENT_DOCS",
     "DEMO_CONTENT_TEXT",
-    "DEMO_HERMES_CRON",
+    "DEMO_GOOROS_CRON",
     "template preview",
     "hard-coded reply",
 )
@@ -29,7 +29,7 @@ def build_live_dashboard(template_path: Path, output_path: Path) -> None:
     text = re.sub(r"^\s*let DEMO_CONTENT_DOCS = .*?;\s*$\n?", "", text, flags=re.M)
     text = re.sub(r"^\s*const DEMO_CONTENT_TEXT = .*?;\s*$\n?", "", text, flags=re.M)
     text = re.sub(r"^\s*const DEMO_CHAT = \{.*?\n\};\s*$\n?", "", text, flags=re.S | re.M)
-    text = re.sub(r"^\s*const DEMO_HERMES_CRON = .*?;\s*$\n?", "", text, flags=re.M)
+    text = re.sub(r"^\s*const DEMO_GOOROS_CRON = .*?;\s*$\n?", "", text, flags=re.M)
     text = re.sub(r"^\s*const DEMO_STATE = .*?;\s*$\n?", "", text, flags=re.M)
 
     text = _replace_required(
@@ -91,12 +91,12 @@ def build_live_dashboard(template_path: Path, output_path: Path) -> None:
 
     text = _replace_required(
         text,
-        "  const jobs = DEMO_HERMES_CRON;",
+        "  const jobs = DEMO_GOOROS_CRON;",
         "  const jobs = (await (await fetch('/api/state', {cache:'no-store'})).json()).hermes_cron || [];",
     )
     text = _replace_required(
         text,
-        "    alert('Template preview — cron actions (run / pause / resume / delete) get wired to Hermes later by the tutorial prompts.');",
+        "    alert('Template preview — cron actions (run / pause / resume / delete) get wired to Gooros later by the tutorial prompts.');",
         "    await fetch('/api/cron/action?action='+encodeURIComponent(action)+'&id='+encodeURIComponent(id), {method:'POST'}); await loadSchedule();",
     )
 

@@ -444,7 +444,7 @@ def agent_command(agent: str) -> list[str]:
     wrapper = shutil.which(f"gooros-{agent}") or shutil.which(agent)
     if wrapper:
         return [wrapper]
-    raise RuntimeError(f"profile wrapper for {agent} not found; run `hermes profile alias {agent} --name gooros-{agent}`")
+    raise RuntimeError(f"profile wrapper for {agent} not found; run the Gooros profile alias setup before sending chat")
 
 
 def clean_stream_text(text: str) -> str:
@@ -713,7 +713,7 @@ def main() -> None:
     init_log_db()
     init_board_db()
     httpd = ThreadingHTTPServer((HOST, PORT), Handler)
-    print(f"Gooros Hermes Mission Control serving on http://{HOST}:{PORT}", flush=True)
+    print(f"Gooros Mission Control serving on http://{HOST}:{PORT}", flush=True)
     httpd.serve_forever()
 
 

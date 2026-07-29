@@ -23,7 +23,23 @@ def main() -> int:
         build_live_dashboard(ROOT / "assets" / "dashboard" / "template.html", out)
         text = out.read_text(encoding="utf-8")
         assert "/gooros-logo.png" in text
-        assert "Hermes<span" not in text
+        old_dashboard_copy = (
+            "Hermes is coordinating",
+            "Hermes Core",
+            "Hermes Jobs",
+            "HERMES JOBS",
+            "Hermes Mission Control",
+            "Hermes agent",
+            "Hermes data",
+            "Hermes home",
+            "Hermes cron",
+            "real Hermes",
+            "Hermes HQ",
+            "Hermes · HQ",
+            "hermes cron create",
+        )
+        for old_copy in old_dashboard_copy:
+            assert old_copy not in text
         assert "DEMO_" not in text
         assert "hard-coded reply" not in text
         assert "hydrate(); connectSSE(); startPolling();" in text
