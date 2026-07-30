@@ -1,6 +1,6 @@
 {
   "product": "gooros-hermes-mission-control",
-  "version": "0.1.10",
+  "version": "0.1.31",
   "schema_version": 1,
   "migrations": ["0001_initial", "0002_remove_demo_dashboard_seed_tasks"],
   "release_owned": [
@@ -16,14 +16,24 @@
     "~/agent-mission-control/board.db",
     "~/agent-mission-control/agent-logs.db",
     "~/agent-mission-control/content",
+    "~/agent-mission-control/reports",
+    "~/agent-mission-control/workspaces",
     "~/.hermes/state.db",
     "~/.hermes/kanban.db",
-    "~/.hermes/profiles/*/state.db"
+    "~/.hermes/profiles/*/state.db",
+    "~/.local/share/gooros/hermes-mission-control/telegram-onboarding-state.json"
   ],
   "merge_managed": [
     "~/.hermes/config.yaml",
     "~/.hermes/.env",
+    "~/.hermes/SOUL.md",
+    "~/.hermes/profiles/*/SOUL.md",
+    "~/.hermes/memories/MEMORY.md",
+    "~/.hermes/memories/USER.md",
+    "~/.hermes/profiles/*/memories/MEMORY.md",
+    "~/.hermes/profiles/*/memories/USER.md",
     "~/.hermes/plugins/telegram_topic_profiles/topics.json",
+    "~/.config/gooros/hermes-mission-control/owner-profile.json",
     "~/.config/gooros/hermes-mission-control/customer.yaml"
   ]
 }

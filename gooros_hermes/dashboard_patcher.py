@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from .constants import VERSION
+from .constants import DASHBOARD_VERSION
 
 
 DEMO_TOKENS = (
@@ -109,6 +109,18 @@ const AGENTS_3D = [
         flags=re.S,
         label="office fallback",
     )
+    text = _replace_required(
+        text,
+        "let empireInited = false;",
+        "const CODE_TO_PROFILE = { OR:'orchestrator', SC:'scout', SB:'scribe', RE:'reach', DV:'dev' };\nlet empireInited = false;",
+    )
+    text = _sub_required(
+        text,
+        r"    const dot = b\.state==='EXECUTING' \? 'bg-ember animate-breathe'\s*: b\.state==='THINKING'\s*\? 'bg-ember-soft'\s*: b\.state==='RETRY'\s*\? 'bg-ember animate-ticker'\s*: 'bg-cream/30';",
+        "    const active = agentWorking(CODE_TO_PROFILE[b.code]);\n    const dot = active ? 'bg-ember animate-breathe' : 'bg-cream/30';",
+        flags=re.S,
+        label="office legend live working state",
+    )
 
     text = re.sub(r"^\s*let DEMO_CONTENT_DOCS = .*?;\s*$\n?", "", text, flags=re.M)
     text = re.sub(r"^\s*const DEMO_CONTENT_TEXT = .*?;\s*$\n?", "", text, flags=re.M)
@@ -129,12 +141,12 @@ const AGENTS_3D = [
     text = _replace_required(
         text,
         "  document.getElementById('doc-del').onclick = async ()=>{ if(!confirm(translateText('Delete this document?', CURRENT_LANG)))return; const i=DEMO_CONTENT_DOCS.findIndex(x=>x.agent===d.agent&&x.filename===d.filename); if(i>=0) DEMO_CONTENT_DOCS.splice(i,1); CONTENT_SEL=null; loadContentDocs(); };",
-        "  document.getElementById('doc-del').onclick = async ()=>{ if(!confirm(translateText('Delete this document?', CURRENT_LANG)))return; await fetch('/api/content/delete?agent='+encodeURIComponent(d.agent)+'&file='+encodeURIComponent(d.filename), {method:'POST'}); CONTENT_SEL=null; loadContentDocs(); };",
+        "  document.getElementById('doc-del').onclick = async ()=>{ if(!confirm(translateText('Delete this document?', CURRENT_LANG)))return; await fetch('/api/content/delete?agent='+encodeURIComponent(d.agent)+'&file='+encodeURIComponent(d.filename), {method:'POST'}); CONTENT_SEL=null; await loadContentDocs(); };",
     )
     text = _replace_required(
         text,
         "    DEMO_CONTENT_TEXT[d.agent+'|'+d.filename] = val;\n    CONTENT_SEL.text = val; openDoc(d); loadContentDocs();",
-        "    await fetch('/api/content/save?agent='+encodeURIComponent(d.agent)+'&file='+encodeURIComponent(d.filename), {method:'POST', body:val});\n    CONTENT_SEL.text = val; openDoc(d); loadContentDocs();",
+        "    await fetch('/api/content/save?agent='+encodeURIComponent(d.agent)+'&file='+encodeURIComponent(d.filename), {method:'POST', body:val});\n    CONTENT_SEL.text = val; await openDoc(d); await loadContentDocs();",
     )
     text = _replace_required(
         text,
@@ -154,24 +166,26 @@ const AGENTS_3D = [
     for(let i=0;i<words.length;i++){ reply.text += (i?' ':'')+words[i]; if(CHAT_CUR===key) renderMessages(); await new Promise(r=>setTimeout(r,42)); }
     reply.ts=Date.now();
     if(CHAT_CUR===key) setChatLive('idle');"""
-    stream_block = """    reply.typing=false;
-    const res = await fetch('/api/chat/send', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({agent:key,text})});
-    if(!res.ok) throw new Error(await res.text());
-    if(res.body){
+    stream_block = """    const res = await fetch('/api/chat/send', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({agent:key, text})});
+    reply.typing=false;
+    if(!res.ok){ throw new Error(await res.text()); }
+    if(res.body && res.body.getReader){
       const reader = res.body.getReader();
-      const dec = new TextDecoder();
+      const decoder = new TextDecoder();
       while(true){
         const chunk = await reader.read();
         if(chunk.done) break;
-        reply.text += dec.decode(chunk.value, {stream:true});
+        reply.text += decoder.decode(chunk.value, {stream:true});
         if(CHAT_CUR===key) renderMessages();
       }
+      reply.text += decoder.decode();
     } else {
       reply.text = await res.text();
     }
     reply.ts=Date.now();
     if(CHAT_CUR===key) setChatLive('idle');"""
     text = _replace_required(text, canned_block, stream_block)
+    text = text.replace("reply.text='âš ï¸ preview error';", "reply.text='Agent turn failed: '+(e && e.message ? e.message : e);")
 
     text = _replace_required(
         text,
@@ -181,7 +195,7 @@ const AGENTS_3D = [
     text = _replace_required(
         text,
         "    alert(translateText('Preview mode — cron actions (run / pause / resume / delete) get wired to Gooros later by the tutorial prompts.', CURRENT_LANG));",
-        "    await fetch('/api/cron/action?action='+encodeURIComponent(action)+'&id='+encodeURIComponent(id), {method:'POST'}); await loadSchedule();",
+        "    const res = await fetch('/api/cron/action?action='+encodeURIComponent(action)+'&id='+encodeURIComponent(id), {method:'POST'});\n    if(!res.ok){ alert(await res.text()); return; }\n    await loadSchedule();",
     )
 
     text = _replace_required(
@@ -250,6 +264,11 @@ const AGENTS_3D = [
     )
     text = _replace_required(
         text,
+        "    setHero('office-lights', fleet.filter(a=>a.state==='EXECUTING').length);",
+        "    setHero('office-lights', (d.working_agents||[]).length);",
+    )
+    text = _replace_required(
+        text,
         "  const totalShare = AGENTS.reduce((s,a)=>s+a.share,0);",
         "  const rawShare = AGENTS.reduce((s,a)=>s+a.share,0);\n  const totalShare = rawShare || AGENTS.length;",
     )
@@ -263,13 +282,156 @@ const AGENTS_3D = [
         "${totalShare}%</text>",
         "${rawShare}%</text>",
     )
-    text = re.sub(r">v1\.0<", f">v{VERSION}<", text, count=1)
+    text = re.sub(r">v1\.0<", f">v{DASHBOARD_VERSION}<", text, count=1)
 
     leftovers = [token for token in DEMO_TOKENS if token in text]
     if leftovers:
         raise RuntimeError(f"dashboard patch left demo tokens: {', '.join(leftovers)}")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(text, encoding="utf-8", newline="\n")
+
+
+def _readonly_office_function() -> str:
+    return r"""/* ============== OFFICE skyline (stdlib / no npm) ============== */
+const EMBER='#e25822', EMBER_SOFT='#f59e6b', INK='#1a1410', INK_2='#241a13', SPOTLIGHT='#00e5ff';
+const CODE_TO_PROFILE = { OR:'orchestrator', SC:'scout', SB:'scribe', RE:'reach', DV:'dev' };
+
+const HQ = { code:'OR', name:'Gooros HQ', role:'Orchestrator', task:'No live task yet.', model:'',
+  state:'IDLE', load:0, tokens:'0 tasks', latency:'-', success:100, tasksToday:0,
+  position:[0,0,0], size:[3.6,6.4,3.6], floors:15, windowCols:6, silhouette:'stepped', accent:EMBER, monument:'conductor' };
+
+const AGENTS_3D = [
+  { code:'SC', name:'Scout', role:'Research', task:'No live task yet.', model:'', state:'IDLE', load:0, tokens:'0 tasks', latency:'-', success:100, tasksToday:0, position:[-7.5,0,-5], size:[2.6,5.6,2.6], floors:14, windowCols:4, silhouette:'tower', accent:SPOTLIGHT, monument:'scout' },
+  { code:'SB', name:'Scribe', role:'Writing', task:'No live task yet.', model:'', state:'IDLE', load:0, tokens:'0 tasks', latency:'-', success:100, tasksToday:0, position:[7.5,0,-5], size:[3.2,4.4,2.4], floors:10, windowCols:5, silhouette:'slab', accent:EMBER, monument:'scribe' },
+  { code:'RE', name:'Reach', role:'Marketing', task:'No live task yet.', model:'', state:'IDLE', load:0, tokens:'0 tasks', latency:'-', success:100, tasksToday:0, position:[-7.5,0,5], size:[2.8,4.8,2.8], floors:12, windowCols:4, silhouette:'twin', accent:EMBER, monument:'herald' },
+  { code:'DV', name:'Dev', role:'Engineering', task:'No live task yet.', model:'', state:'IDLE', load:0, tokens:'0 tasks', latency:'-', success:100, tasksToday:0, position:[7.5,0,5], size:[2.6,6.4,2.6], floors:16, windowCols:4, silhouette:'tower', accent:EMBER, monument:'smith' },
+];
+const ALL_BUILDINGS = [HQ, ...AGENTS_3D];
+
+let empireInited = false;
+let officeSelected = null;
+let empireApi = null;
+
+function renderLegend() {
+  document.getElementById('empire-legend').innerHTML = ALL_BUILDINGS.map(b => {
+    const sel = officeSelected===b.code;
+    const active = agentWorking(CODE_TO_PROFILE[b.code]);
+    const dot = active ? 'bg-ember animate-breathe' : 'bg-cream/30';
+    return `<button data-bcode="${b.code}" class="text-left rounded-[22px] p-3 reference-log-card transition-all ${sel?'bg-[rgb(247_240_225_/_0.08)]':'hover:bg-[rgb(247_240_225_/_0.08)]'}">
+      <div class="flex items-center justify-between">
+        <span class="font-mono text-[9px] tracking-[0.22em] uppercase text-cream/55">${b.code==='OR'?'HQ':b.role}</span>
+        <span class="size-2 rounded-full ${dot}"></span>
+      </div>
+      <div class="font-display text-[20px] mt-1 leading-none">${b.name}</div>
+      <div class="font-mono text-[10px] mt-1.5 text-cream/55 truncate">${b.model}</div>
+    </button>`;
+  }).join('');
+  document.querySelectorAll('[data-bcode]').forEach(btn => {
+    btn.addEventListener('click', () => selectBuilding(btn.dataset.bcode));
+  });
+  syncLanguage();
+}
+
+function renderDossier() {
+  const mount = document.getElementById('dossier-mount');
+  if (!officeSelected) { mount.innerHTML=''; syncLanguage(); return; }
+  const a = ALL_BUILDINGS.find(b=>b.code===officeSelected);
+  if (!a) return;
+  const isHQ = a.code==='OR';
+  mount.innerHTML = `<div class="absolute top-4 right-4 z-30 w-[320px] max-w-[calc(100%-2rem)] rounded-2xl bg-ink/95 backdrop-blur-xl border border-ember/30 p-5 text-cream shadow-2xl animate-rise">
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <div class="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-ember">
+          <i data-lucide="flame" class="size-3"></i> ${isHQ?'Orchestrator · HQ':`${a.role} · Specialist`}
+        </div>
+        <div class="font-display text-[28px] leading-none mt-1.5">${a.name}</div>
+      </div>
+      <button id="dossier-close" class="size-8 rounded-full bg-cream/5 border border-cream/10 grid place-items-center hover:bg-ember/20 hover:border-ember/40 transition">
+        <i data-lucide="x" class="size-3.5"></i>
+      </button>
+    </div>
+    <div class="mt-4 rounded-xl bg-cream/5 border border-cream/10 p-3">
+      <div class="font-mono text-[9px] tracking-[0.2em] uppercase text-cream/55">Current task</div>
+      <div class="font-sans text-[13px] leading-snug mt-1">${a.task}</div>
+    </div>
+    <div class="mt-3 grid grid-cols-2 gap-2">
+      ${[['Load',a.load+'%','zap'],['Tokens 24h',a.tokens,'sparkles'],['Latency',a.latency,'cpu'],['Success',a.success+'%','flame']].map(([k,v,icon])=>`
+        <div class="rounded-xl bg-cream/5 border border-cream/10 p-3">
+          <div class="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-wider text-cream/55"><i data-lucide="${icon}" class="size-3"></i> ${k}</div>
+          <div class="font-display text-[20px] tabular-nums mt-1 leading-none">${v}</div>
+        </div>`).join('')}
+    </div>
+    <div class="mt-3 pt-3 border-t border-cream/10 flex items-center justify-between font-mono text-[10px] uppercase tracking-wider">
+      <span class="text-cream/55">Model</span><span class="text-ember">${a.model}</span>
+    </div>
+    <div class="flex items-center justify-between font-mono text-[10px] uppercase tracking-wider mt-1.5">
+      <span class="text-cream/55">State</span><span class="text-cream">${a.state}</span>
+    </div>
+    <div class="flex items-center justify-between font-mono text-[10px] uppercase tracking-wider mt-1.5">
+      <span class="text-cream/55">Tasks today</span><span class="text-cream tabular-nums">${a.tasksToday}</span>
+    </div>
+  </div>`;
+  document.getElementById('dossier-close').addEventListener('click', () => selectBuilding(null));
+  lucide.createIcons();
+  syncLanguage();
+}
+
+function selectBuilding(code) {
+  officeSelected = code;
+  if (empireApi) empireApi.setSelected(code);
+  renderLegend();
+  renderDossier();
+}
+
+async function initEmpire() {
+  if (empireInited) { renderLegend(); renderDossier(); if (empireApi) empireApi.setSelected(officeSelected); return; }
+  empireInited = true;
+  renderLegend();
+  const wrap = document.getElementById('empire-canvas-wrap');
+  if (!wrap) return;
+  const loading = document.getElementById('empire-loading');
+  if (loading) loading.remove();
+  wrap.innerHTML = `<div class="absolute inset-0 overflow-hidden rounded-[28px] bg-[radial-gradient(circle_at_50%_15%,rgba(226,88,34,.22),transparent_32%),linear-gradient(180deg,#120c08_0%,#241a13_62%,#120c08_100%)]">
+    <div class="absolute inset-x-8 bottom-14 h-px bg-ember/50"></div>
+    <div id="office-skyline" class="absolute inset-x-5 bottom-14 flex items-end justify-center gap-4 sm:gap-6"></div>
+    <div class="absolute inset-x-10 bottom-8 h-6 rounded-full bg-ember/10 blur-xl"></div>
+  </div>`;
+  const skyline = wrap.querySelector('#office-skyline');
+  function buildingMarkup(agent, index) {
+    const profile = CODE_TO_PROFILE[agent.code] || 'orchestrator';
+    const active = agentWorking(profile);
+    const height = Math.max(96, Math.min(230, 88 + (agent.tasksToday || 0) * 6 + (agent.load || 0)));
+    const width = agent.code === 'OR' ? 86 : 68;
+    const glow = active ? SPOTLIGHT : (agent.accent || EMBER);
+    const windows = Array.from({length: Math.max(10, Math.min(36, Math.round(height / 7)))}, (_, i) =>
+      `<span class="block h-1.5 rounded-full" style="background:${i % 3 === 0 ? glow : 'rgba(247,240,225,.34)'}"></span>`
+    ).join('');
+    return `<button data-office-code="${agent.code}" class="group relative shrink-0 rounded-t-[18px] border border-cream/10 bg-ink/90 px-3 pb-3 pt-4 text-left shadow-2xl transition hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-ember/60" style="height:${height}px;width:${width}px;box-shadow:0 0 32px ${glow}33">
+      <div class="absolute -top-3 left-1/2 h-5 w-5 -translate-x-1/2 rotate-45 rounded-sm border border-cream/10" style="background:${glow}"></div>
+      <div class="grid grid-cols-3 gap-1">${windows}</div>
+      <div class="absolute inset-x-2 bottom-2 rounded-lg bg-cream/5 px-2 py-1">
+        <div class="font-mono text-[9px] text-cream/60">${agent.code}</div>
+        <div class="truncate font-sans text-[11px] text-cream">${agent.name}</div>
+      </div>
+    </button>`;
+  }
+  skyline.innerHTML = ALL_BUILDINGS.map(buildingMarkup).join('');
+  skyline.querySelectorAll('[data-office-code]').forEach(btn => {
+    btn.addEventListener('click', () => selectBuilding(btn.dataset.officeCode));
+  });
+  empireApi = {
+    setSelected(code) {
+      skyline.querySelectorAll('[data-office-code]').forEach(btn => {
+        btn.classList.toggle('ring-2', btn.dataset.officeCode === code);
+        btn.classList.toggle('ring-ember', btn.dataset.officeCode === code);
+      });
+    },
+    colors() { return ALL_BUILDINGS.map(b => ({code:b.code, accent:b.accent || EMBER})); },
+  };
+  empireApi.setSelected(officeSelected);
+  lucide.createIcons();
+  syncLanguage();
+}"""
 
 
 def _open_agent_function() -> str:

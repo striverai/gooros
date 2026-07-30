@@ -23,10 +23,13 @@ from .installer import (
     install_systemd_services,
     install_telegram_routing,
     preflight,
+    retire_legacy_orchestrator_profile,
     restart_gateway,
     restart_systemd_services,
     seed_router_management_env,
     smoke_9router_model,
+    verify_prompt13_profile_isolation_live,
+    verify_prompt17_telegram_routing_audit_live,
     wait_for_9router,
     write_model_routing,
     write_system_env,
@@ -321,9 +324,12 @@ def cmd_apply_staged(args: object) -> int:
     apply_migrations(staged, paths, manifest, runner)
     install_9router_if_requested(runner, requested=with_9router)
     install_orchestrator_rules(paths, config, runner)
+    retire_legacy_orchestrator_profile(runner, paths)
     install_profiles(runner, paths, config)
     install_logging(paths, runner)
     install_telegram_routing(runner, paths, config, systemd=systemd)
+    verify_prompt13_profile_isolation_live(runner, paths)
+    verify_prompt17_telegram_routing_audit_live(runner, paths, config)
     install_dashboard(paths, runner)
     if systemd or public:
         write_system_env(runner, paths, config, pass_hash)

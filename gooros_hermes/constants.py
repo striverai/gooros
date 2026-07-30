@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 PRODUCT = "gooros-hermes-mission-control"
-VERSION = "0.1.10"
+VERSION = "0.1.31"
+DASHBOARD_VERSION = "1.2"
 SCHEMA_VERSION = 1
 GOOROS_9ROUTER_API_KEY_NAME = "Gooros Hermes"
 GOOROS_9ROUTER_COMBO_NAME = "gooros-free-combo"
@@ -15,7 +16,7 @@ AGENT_META = {
         "initials": "OR",
         "name": "Orchestrator",
         "role": "Coordinator",
-        "channel": "telegram",
+        "channel": "#command",
     },
     "scout": {
         "code": "A-01",

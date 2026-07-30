@@ -1,6 +1,5 @@
 name: telegram_topic_profiles
-version: 1.0.0
-description: "Route Telegram forum topics to Hermes profiles."
+version: 1.5.0
+description: "Route Telegram forum topics to Hermes profiles/root Orchestrator, run adaptive owner onboarding, Prompt 7 handoff obvious out-of-scope tasks, save memory, and mirror topic tasks to the dashboard board."
 author: Gooros
 kind: standalone
-

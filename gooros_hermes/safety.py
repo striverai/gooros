@@ -14,13 +14,21 @@ def snapshot_targets(paths: InstallPaths) -> dict[str, Path]:
         "hermes-env": paths.hermes_home / ".env",
         "gooros-customer.yaml": paths.customer_config,
         "gooros-secrets.env": paths.secrets_env,
+        "owner-profile.json": paths.config_dir / "owner-profile.json",
+        "telegram-onboarding-state.json": paths.data_dir / "telegram-onboarding-state.json",
         "board.db": paths.project_dir / "board.db",
         "agent-logs.db": paths.project_dir / "agent-logs.db",
         "content": paths.project_dir / "content",
+        "workspaces": paths.project_dir / "workspaces",
+        "reports": paths.project_dir / "reports",
         "server.py": paths.project_dir / "server.py",
         "template.html": paths.project_dir / "template.html",
         "index.html": paths.project_dir / "index.html",
+        "root-SOUL.md": paths.hermes_home / "SOUL.md",
         "orchestrator-rules.md": paths.hermes_home / "GOOROS_ORCHESTRATOR.md",
+        "root-MEMORY.md": paths.hermes_home / "memories" / "MEMORY.md",
+        "root-USER.md": paths.hermes_home / "memories" / "USER.md",
+        "legacy-profile-orchestrator": paths.hermes_home / "profiles" / "orchestrator",
         "telegram-topic-profiles": paths.hermes_home / "plugins" / "telegram_topic_profiles",
         "shared-scripts": paths.hermes_home / "agents" / "_shared",
         "install-state.json": paths.install_state,
@@ -30,6 +38,8 @@ def snapshot_targets(paths: InstallPaths) -> dict[str, Path]:
     for agent in SPECIALISTS:
         targets[f"profile-{agent}-SOUL.md"] = paths.hermes_home / "profiles" / agent / "SOUL.md"
         targets[f"profile-{agent}-config.yaml"] = paths.hermes_home / "profiles" / agent / "config.yaml"
+        targets[f"profile-{agent}-MEMORY.md"] = paths.hermes_home / "profiles" / agent / "memories" / "MEMORY.md"
+        targets[f"profile-{agent}-USER.md"] = paths.hermes_home / "profiles" / agent / "memories" / "USER.md"
     return targets
 
 

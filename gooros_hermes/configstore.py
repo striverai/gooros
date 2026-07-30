@@ -16,10 +16,14 @@ class CustomerConfig:
     owner_name: str
     owner_work: str
     owner_focus: str
+    owner_working_hours: str
+    owner_important_people: str
+    owner_cares_about: str
     timezone: str
     telegram_chat_id: str
     telegram_bot_token: str
     telegram_allowed_users: str
+    thread_command: str
     thread_scout: str
     thread_scribe: str
     thread_reach: str
@@ -36,8 +40,12 @@ class CustomerConfig:
             "owner_name": self.owner_name,
             "owner_work": self.owner_work,
             "owner_focus": self.owner_focus,
+            "owner_working_hours": self.owner_working_hours,
+            "owner_important_people": self.owner_important_people,
+            "owner_cares_about": self.owner_cares_about,
             "timezone": self.timezone,
             "telegram_chat_id": self.telegram_chat_id,
+            "thread_command": self.thread_command,
             "thread_scout": self.thread_scout,
             "thread_scribe": self.thread_scribe,
             "thread_reach": self.thread_reach,
@@ -97,10 +105,14 @@ def collect_customer_config(args: object, *, interactive: bool) -> CustomerConfi
         "owner_name": _env_arg(args, "owner_name", env_file, ("GOOROS_OWNER_NAME", "OWNER_NAME")),
         "owner_work": _env_arg(args, "owner_work", env_file, ("GOOROS_OWNER_WORK", "OWNER_WORK")),
         "owner_focus": _env_arg(args, "owner_focus", env_file, ("GOOROS_OWNER_FOCUS", "OWNER_FOCUS")),
+        "owner_working_hours": _env_arg(args, "owner_working_hours", env_file, ("GOOROS_OWNER_WORKING_HOURS", "OWNER_WORKING_HOURS")),
+        "owner_important_people": _env_arg(args, "owner_important_people", env_file, ("GOOROS_OWNER_IMPORTANT_PEOPLE", "OWNER_IMPORTANT_PEOPLE")),
+        "owner_cares_about": _env_arg(args, "owner_cares_about", env_file, ("GOOROS_OWNER_CARES_ABOUT", "OWNER_CARES_ABOUT")),
         "timezone": _env_arg(args, "timezone", env_file, ("GOOROS_TIMEZONE", "TIMEZONE"), "Asia/Ho_Chi_Minh"),
         "telegram_chat_id": _env_arg(args, "telegram_chat_id", env_file, ("TELEGRAM_CHAT_ID", "GOOROS_TELEGRAM_CHAT_ID")),
         "telegram_bot_token": _env_arg(args, "telegram_bot_token", env_file, ("TELEGRAM_BOT_TOKEN", "GOOROS_TELEGRAM_BOT_TOKEN")),
         "telegram_allowed_users": _env_arg(args, "telegram_allowed_users", env_file, ("TELEGRAM_ALLOWED_USERS", "GOOROS_TELEGRAM_ALLOWED_USERS")),
+        "thread_command": _env_arg(args, "thread_command", env_file, ("TELEGRAM_THREAD_COMMAND", "GOOROS_THREAD_COMMAND", "THREAD_COMMAND")),
         "thread_scout": _env_arg(args, "thread_scout", env_file, ("TELEGRAM_THREAD_SCOUT", "GOOROS_THREAD_SCOUT", "THREAD_SCOUT")),
         "thread_scribe": _env_arg(args, "thread_scribe", env_file, ("TELEGRAM_THREAD_SCRIBE", "GOOROS_THREAD_SCRIBE", "THREAD_SCRIBE")),
         "thread_reach": _env_arg(args, "thread_reach", env_file, ("TELEGRAM_THREAD_REACH", "GOOROS_THREAD_REACH", "THREAD_REACH")),
@@ -116,6 +128,9 @@ def collect_customer_config(args: object, *, interactive: bool) -> CustomerConfi
         values["owner_name"] = _prompt("Owner name", values["owner_name"])
         values["owner_work"] = _prompt("Owner work/business", values["owner_work"])
         values["owner_focus"] = _prompt("Current focus", values["owner_focus"])
+        values["owner_working_hours"] = _prompt("Owner working hours", values["owner_working_hours"])
+        values["owner_important_people"] = _prompt("Important people/accounts never to miss", values["owner_important_people"])
+        values["owner_cares_about"] = _prompt("What the owner wants tracked vs delegated", values["owner_cares_about"])
         values["timezone"] = _prompt("Timezone", values["timezone"])
         values["telegram_chat_id"] = _prompt("Telegram group chat ID (-100...)", values["telegram_chat_id"])
         values["telegram_bot_token"] = _prompt("Telegram bot token", values["telegram_bot_token"], secret=True)
@@ -123,25 +138,48 @@ def collect_customer_config(args: object, *, interactive: bool) -> CustomerConfi
             "Telegram allowed user IDs (comma-separated, optional)",
             values["telegram_allowed_users"],
         )
+        values["thread_command"] = _prompt("Thread ID #command", values["thread_command"])
         values["thread_scout"] = _prompt("Thread ID #scout", values["thread_scout"])
         values["thread_scribe"] = _prompt("Thread ID #scribe", values["thread_scribe"])
         values["thread_reach"] = _prompt("Thread ID #reach", values["thread_reach"])
         values["thread_dev"] = _prompt("Thread ID #dev", values["thread_dev"])
         values["telegram_home_channel"] = _prompt(
             "Telegram home channel target (telegram:chat:thread)",
-            values["telegram_home_channel"] or f"telegram:{values['telegram_chat_id']}",
+            values["telegram_home_channel"] or (
+                f"telegram:{values['telegram_chat_id']}:{values['thread_command']}" if values["thread_command"] else f"telegram:{values['telegram_chat_id']}"
+            ),
         )
         values["public_ip"] = _prompt("Public IP for sslip.io", values["public_ip"])
         values["acme_email"] = _prompt("ACME email for Caddy", values["acme_email"])
         values["dash_user"] = _prompt("Dashboard auth user", values["dash_user"])
         if not getattr(args, "dash_password", None):
             print("Dashboard password generated automatically. It will be shown once in the install report.")
+    if not values["telegram_home_channel"] and values["telegram_chat_id"]:
+        values["telegram_home_channel"] = (
+            f"telegram:{values['telegram_chat_id']}:{values['thread_command']}"
+            if values["thread_command"]
+            else f"telegram:{values['telegram_chat_id']}"
+        )
     return CustomerConfig(**values)
 
 
 def validate_required(config: CustomerConfig, *, public_dashboards: bool, require_telegram_token: bool = False) -> list[str]:
     missing = []
-    required = ["owner_name", "timezone", "telegram_chat_id", "thread_scout", "thread_scribe", "thread_reach", "thread_dev"]
+    required = [
+        "owner_name",
+        "owner_work",
+        "owner_focus",
+        "owner_working_hours",
+        "owner_important_people",
+        "owner_cares_about",
+        "timezone",
+        "telegram_chat_id",
+        "thread_command",
+        "thread_scout",
+        "thread_scribe",
+        "thread_reach",
+        "thread_dev",
+    ]
     if require_telegram_token:
         required.append("telegram_bot_token")
     if public_dashboards:
@@ -220,10 +258,14 @@ def read_customer_files(paths: InstallPaths) -> CustomerConfig:
         "owner_name": "",
         "owner_work": "",
         "owner_focus": "",
+        "owner_working_hours": "",
+        "owner_important_people": "",
+        "owner_cares_about": "",
         "timezone": "Asia/Ho_Chi_Minh",
         "telegram_chat_id": "",
         "telegram_bot_token": secrets.get("GOOROS_TELEGRAM_BOT_TOKEN", secrets.get("TELEGRAM_BOT_TOKEN", "")),
         "telegram_allowed_users": secrets.get("GOOROS_TELEGRAM_ALLOWED_USERS", secrets.get("TELEGRAM_ALLOWED_USERS", "")),
+        "thread_command": "",
         "thread_scout": "",
         "thread_scribe": "",
         "thread_reach": "",
@@ -236,6 +278,12 @@ def read_customer_files(paths: InstallPaths) -> CustomerConfig:
         "model_policy": "9router-free-combo-round-robin",
     }
     defaults.update({k: v for k, v in values.items() if k in defaults})
+    if not defaults["telegram_home_channel"] and defaults["telegram_chat_id"]:
+        defaults["telegram_home_channel"] = (
+            f"telegram:{defaults['telegram_chat_id']}:{defaults['thread_command']}"
+            if defaults["thread_command"]
+            else f"telegram:{defaults['telegram_chat_id']}"
+        )
     return CustomerConfig(**defaults)
 
 

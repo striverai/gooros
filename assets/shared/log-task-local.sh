@@ -7,8 +7,8 @@ status="${3:-}"
 model="${4:-}"
 db="${AGENT_LOG_DB:-$HOME/agent-mission-control/agent-logs.db}"
 
-if [[ -z "$agent" || -z "$task" || -z "$status" || -z "$model" ]]; then
-  echo "usage: log-task-local.sh <agent> <task> <completed|failed> <model>" >&2
+if [[ -z "$agent" || -z "$task" || -z "$status" ]]; then
+  echo "usage: log-task-local.sh <agent> <task> <completed|failed> [model]" >&2
   exit 2
 fi
 if [[ "$status" != "completed" && "$status" != "failed" ]]; then
@@ -17,9 +17,15 @@ if [[ "$status" != "completed" && "$status" != "failed" ]]; then
 fi
 
 python3 - "$db" "$agent" "$task" "$status" "$model" <<'PY'
-import sqlite3, sys, uuid
+import os
+import sqlite3
+import sys
+import uuid
 from datetime import datetime, timezone
 db, agent, task, status, model = sys.argv[1:6]
+parent = os.path.dirname(os.path.abspath(os.path.expanduser(db)))
+if parent:
+    os.makedirs(parent, exist_ok=True)
 conn = sqlite3.connect(db)
 conn.executescript("""
 CREATE TABLE IF NOT EXISTS agent_logs (
@@ -39,6 +45,6 @@ conn.execute(
     (str(uuid.uuid4()), agent, task[:140], model, status, datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")),
 )
 conn.commit()
+conn.close()
 print(f"LOGGED: {agent} | {status} | {model}")
 PY
-

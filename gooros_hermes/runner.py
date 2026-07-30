@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import shlex
 import subprocess
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -15,7 +16,12 @@ class Runner:
 
     def log(self, message: str) -> None:
         if self.verbose:
-            print(message, flush=True)
+            try:
+                print(message, flush=True)
+            except UnicodeEncodeError:
+                encoding = sys.stdout.encoding or "utf-8"
+                safe = message.encode(encoding, errors="replace").decode(encoding, errors="replace")
+                print(safe, flush=True)
 
     def command_text(self, argv: list[str]) -> str:
         return " ".join(shlex.quote(x) for x in argv)
@@ -42,6 +48,8 @@ class Runner:
             argv,
             cwd=str(cwd) if cwd else None,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             input=input_text,
             capture_output=capture,
             timeout=timeout,
@@ -62,4 +70,3 @@ class Runner:
         env: dict[str, str] | None = None,
     ) -> subprocess.CompletedProcess[str]:
         return self.run(["bash", "-lc", script], check=check, capture=capture, timeout=timeout, env=env)
-

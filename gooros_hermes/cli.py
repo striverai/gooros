@@ -1,14 +1,31 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 
-from .installer import install
+from .configstore import collect_customer_config
+from .installer import activate_prompt16_multi_agent_mode, install, install_prompt15_routing_plugin, verify_prompt17_telegram_routing_audit_live
 from .paths import default_paths
+from .prompt15 import prompt15_report_markdown_path
+from .prompt16 import prompt16_report_markdown_path
+from .prompt17 import prompt17_report_markdown_path
+from .prompt19 import discover_prompt19_sources, render_prompt19_markdown
 from .rollback import rollback
 from .runner import Runner
+from .tailscale import prompt33_report_markdown_path, setup_tailscale_dashboard
 from .updater import cmd_apply_staged, update
 from .verify import doctor, print_doctor, verify_install
+
+
+def safe_print(message: str, *, file=None) -> None:
+    target = file or sys.stdout
+    try:
+        print(message, file=target)
+    except UnicodeEncodeError:
+        encoding = target.encoding or "utf-8"
+        safe = message.encode(encoding, errors="replace").decode(encoding, errors="replace")
+        print(safe, file=target)
 
 
 def add_common_paths(parser: argparse.ArgumentParser) -> None:
@@ -23,10 +40,14 @@ def add_config_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--owner-name")
     parser.add_argument("--owner-work", default="")
     parser.add_argument("--owner-focus", default="")
+    parser.add_argument("--owner-working-hours", default="")
+    parser.add_argument("--owner-important-people", default="")
+    parser.add_argument("--owner-cares-about", default="")
     parser.add_argument("--timezone", default="Asia/Ho_Chi_Minh")
     parser.add_argument("--telegram-chat-id")
     parser.add_argument("--telegram-bot-token")
     parser.add_argument("--telegram-allowed-users", default="")
+    parser.add_argument("--thread-command")
     parser.add_argument("--thread-scout")
     parser.add_argument("--thread-scribe")
     parser.add_argument("--thread-reach")
@@ -44,7 +65,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(
         dest="command",
         required=True,
-        metavar="{install,plan,verify,doctor,update,rollback,expose,auth}",
+        metavar="{install,plan,prompt15-plugin,prompt16-activate,prompt17-audit,prompt19-discover,tailscale-serve,verify,doctor,update,rollback,expose,auth}",
     )
 
     install_p = sub.add_parser("install", help="Install Gooros Hermes Mission Control")
@@ -70,6 +91,31 @@ def build_parser() -> argparse.ArgumentParser:
     plan_p.add_argument("--systemd", action="store_true")
     plan_p.add_argument("--yes", action="store_true", default=True)
     plan_p.add_argument("--dry-run", action="store_true", default=True)
+
+    prompt15_p = sub.add_parser("prompt15-plugin", help="Create the exact Prompt 15 Telegram topic routing plugin without enabling or restarting")
+    add_common_paths(prompt15_p)
+    add_config_args(prompt15_p)
+    prompt15_p.add_argument("--yes", "-y", action="store_true", help="Non-interactive; fail if required thread IDs are missing")
+    prompt15_p.add_argument("--dry-run", action="store_true")
+
+    prompt16_p = sub.add_parser("prompt16-activate", help="Enable Telegram topic routing, multiplex profiles, and restart Hermes gateway")
+    add_common_paths(prompt16_p)
+    prompt16_p.add_argument("--dry-run", action="store_true")
+
+    prompt17_p = sub.add_parser("prompt17-audit", help="Audit Telegram topic routing against Prompt 17")
+    add_common_paths(prompt17_p)
+    add_config_args(prompt17_p)
+    prompt17_p.add_argument("--yes", "-y", action="store_true", help="Non-interactive; fail if required routing IDs are missing")
+    prompt17_p.add_argument("--dry-run", action="store_true")
+
+    prompt19_p = sub.add_parser("prompt19-discover", help="Read Hermes state.db, kanban.db, and gateway_state.json schema without writing files")
+    add_common_paths(prompt19_p)
+    prompt19_p.add_argument("--json", action="store_true", help="Print machine-readable JSON instead of Markdown")
+
+    tailscale_p = sub.add_parser("tailscale-serve", help="Expose Mission Control privately over Tailscale Serve")
+    add_common_paths(tailscale_p)
+    tailscale_p.add_argument("--dry-run", action="store_true")
+    tailscale_p.add_argument("--port", type=int, default=51763)
 
     verify_p = sub.add_parser("verify", help="Verify an installed system")
     add_common_paths(verify_p)
@@ -139,14 +185,57 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command in {"install", "plan"}:
             return install(args)
+        if args.command == "prompt15-plugin":
+            paths = default_paths(args.hermes_home, args.project_dir, args.config_dir, args.data_dir)
+            config = collect_customer_config(args, interactive=not args.yes and not args.dry_run)
+            required = ("telegram_chat_id", "thread_scout", "thread_scribe", "thread_reach", "thread_dev")
+            missing = [key for key in required if not getattr(config, key)]
+            if missing and not args.dry_run:
+                raise RuntimeError("missing required Prompt 15 config: " + ", ".join(missing))
+            install_prompt15_routing_plugin(Runner(dry_run=args.dry_run, verbose=True), paths, config)
+            if not args.dry_run:
+                safe_print(f"Prompt 15 routing plugin report: {prompt15_report_markdown_path(paths.project_dir)}")
+            return 0
+        if args.command == "prompt16-activate":
+            paths = default_paths(args.hermes_home, args.project_dir, args.config_dir, args.data_dir)
+            activate_prompt16_multi_agent_mode(Runner(dry_run=args.dry_run, verbose=True), paths)
+            if not args.dry_run:
+                safe_print(f"Prompt 16 multi-agent activation report: {prompt16_report_markdown_path(paths.project_dir)}")
+            return 0
+        if args.command == "prompt17-audit":
+            paths = default_paths(args.hermes_home, args.project_dir, args.config_dir, args.data_dir)
+            config = collect_customer_config(args, interactive=not args.yes and not args.dry_run)
+            required = ("telegram_chat_id", "thread_command", "thread_scout", "thread_scribe", "thread_reach", "thread_dev")
+            missing = [key for key in required if not getattr(config, key)]
+            if missing and not args.dry_run:
+                raise RuntimeError("missing required Prompt 17 config: " + ", ".join(missing))
+            verify_prompt17_telegram_routing_audit_live(Runner(dry_run=args.dry_run, verbose=True), paths, config)
+            if not args.dry_run:
+                safe_print(f"Prompt 17 Telegram routing audit report: {prompt17_report_markdown_path(paths.project_dir)}")
+            return 0
+        if args.command == "prompt19-discover":
+            paths = default_paths(args.hermes_home, args.project_dir, args.config_dir, args.data_dir)
+            report = discover_prompt19_sources(paths.hermes_home)
+            if args.json:
+                safe_print(json.dumps(report, ensure_ascii=False, indent=2))
+            else:
+                safe_print(render_prompt19_markdown(report))
+            return 0
+        if args.command == "tailscale-serve":
+            paths = default_paths(args.hermes_home, args.project_dir, args.config_dir, args.data_dir)
+            report = setup_tailscale_dashboard(Runner(dry_run=args.dry_run, verbose=True), paths, port=args.port)
+            safe_print(json.dumps(report, ensure_ascii=False, indent=2))
+            if not args.dry_run:
+                safe_print(f"Prompt 33 Tailscale report: {prompt33_report_markdown_path(paths.project_dir)}")
+            return 0 if report.get("status") == "passed" else 1
         if args.command == "verify":
             paths = default_paths(args.hermes_home, args.project_dir, args.config_dir, args.data_dir)
             failures = verify_install(paths, public=args.public, with_9router=args.with_9router)
             if failures:
                 for failure in failures:
-                    print(f"FAIL: {failure}")
+                    safe_print(f"FAIL: {failure}")
                 return 1
-            print("OK")
+            safe_print("OK")
             return 0
         if args.command == "doctor":
             paths = default_paths(args.hermes_home, args.project_dir, args.config_dir, args.data_dir)
@@ -167,7 +256,7 @@ def main(argv: list[str] | None = None) -> int:
     except KeyboardInterrupt:
         return 130
     except Exception as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
+        safe_print(f"ERROR: {exc}", file=sys.stderr)
         return 1
     return 0
 
